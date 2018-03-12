@@ -2,7 +2,7 @@
 
 Project statistics:  <!--start-->
 [![Stats](https://img.shields.io/badge/Code_lines-218-ff69b4.svg)]()
-[![Stats](https://img.shields.io/badge/Doc_lines-18-ff69b4.svg)]()
+[![Stats](https://img.shields.io/badge/Doc_lines-19-ff69b4.svg)]()
 <!--end-->
 
 I've been an avid user of Git and Hg for over 10 years - but I've never dug into their implementation details. 
@@ -24,22 +24,21 @@ I wanted things to be fair. Now 500 lines of code is not a lot, and I could easi
 
 ## Features implemented
 
-	* commits
-	* branches
-	* detached heads
-	* checkout old commits
-	* logging (90%)
+ * commits
+ * branches
+ * detached heads
+ * checkout old commits
+ * logging (90%)
 
 
 ## planned work 
 	
-	* push
-	* pull
-	* sub-folder support
-	* graphical logging
-	* commit when detached head
-	* git INDEX rather than scanning files
-	* blob compression
+ * push
+ * pull
+ * sub-folder support
+ * graphical logging
+ * git INDEX rather than scanning files
+ * blob compression
 
 
 I will blog about the implementation on [http://firstclassthoughts.co.uk/](http://firstclassthoughts.co.uk/)

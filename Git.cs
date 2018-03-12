@@ -273,7 +273,7 @@ namespace KbgSoft.KBGit
 			return result;
 		}
 
-		public Id Commit(string message, string author, params FileInfo[] fileInfo)
+		public Id Commit(string message, string author, DateTime now, params FileInfo[] fileInfo)
 		{
 			var blobsInCommit = fileInfo.Select(x => new
 			{
@@ -287,11 +287,11 @@ namespace KbgSoft.KBGit
 				Lines = blobsInCommit.Select(x => new BlobTreeLine(x.blobid, x.blob, x.file.Path)).ToArray(),
 			};
 
-			var parentCommitId = Hd.Branches[Hd.Head.Branch]?.Tip;
+			var parentCommitId = Hd.Head.GetId(Hd);
 			var isFirstCommit = parentCommitId == null;
 			var commit = new CommitNode
 			{
-				Time = DateTime.Now,
+				Time = now,
 				Tree = treeNode,
 				Author = author,
 				Message = message,
