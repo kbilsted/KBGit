@@ -1,9 +1,9 @@
-# KBGit - Git implemented in less than 500 lines of code...
+# KBGit - Git implemented in 500 lines of code (or less ...)
 
 Project statistics:  <!--start-->
 [![Stats](https://img.shields.io/badge/Code_lines-218-ff69b4.svg)]()
 [![Stats](https://img.shields.io/badge/Doc_lines-18-ff69b4.svg)]()
-<!--end-->  (provided by https://github.com/kbilsted/LineCounter.Net)
+<!--end-->
 
 I've been an avid user of Git and Hg for over 10 years - but I've never dug into their implementation details. 
 I did not long ago, and I found beaty! Such beauty that I wanted to share the great ideas of turning something as conceptually complex as a source code versioning system 
