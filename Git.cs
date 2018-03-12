@@ -9,7 +9,7 @@ namespace KbgSoft.KBGit
 {
 	public static class Sha
 	{
-		static SHA256 sha = SHA256.Create();
+		static readonly SHA256 sha = SHA256.Create();
 
 		public static byte[] Compute(object o)
 		{
@@ -187,7 +187,7 @@ namespace KbgSoft.KBGit
 	/// * checkout old commits
 	/// * logging
 	/// </summary>
-	class KBGit
+	public class KBGit
 	{
 		private readonly string repositoryName;
 		public string CodeFolder { get; }
@@ -219,7 +219,7 @@ namespace KbgSoft.KBGit
 		{
 			Hd = new Storage();
 			var branch = FullName("master");
-			Checkout_b(branch, null);
+			CheckOut_b(branch, null);
 			Hd.Head.Update(branch);
 			SaveState();
 			ResetCodeFolder();
@@ -245,13 +245,13 @@ namespace KbgSoft.KBGit
 		}
 
 		/// <summary> Create a branch: e.g "git checkout -b foo" </summary>
-		public void Checkout_b(string name)
+		public void CheckOut_b(string name)
 		{
-			Checkout_b(name, Hd.Head.GetId(Hd));
+			CheckOut_b(name, Hd.Head.GetId(Hd));
 		}
 
 		/// <summary> Create a branch: e.g "git checkout -b foo fb1234.."</summary>
-		public void Checkout_b(string name, Id position)
+		public void CheckOut_b(string name, Id position)
 		{
 			name = FullName(name);
 
@@ -275,7 +275,7 @@ namespace KbgSoft.KBGit
 
 		public Id Commit(string message, string author, params FileInfo[] fileInfo)
 		{
-			var blobs = fileInfo.Select(x => new
+			var blobsInCommit = fileInfo.Select(x => new
 			{
 				file = x,
 				blobid = new Id(Sha.Compute(x.Content)),
@@ -284,7 +284,7 @@ namespace KbgSoft.KBGit
 
 			var treeNode = new TreeNode()
 			{
-				Lines = blobs.Select(x => new BlobTreeLine(x.blobid, x.blob, x.file.Path)).ToArray(),
+				Lines = blobsInCommit.Select(x => new BlobTreeLine(x.blobid, x.blob, x.file.Path)).ToArray(),
 			};
 
 			var parentCommitId = Hd.Branches[Hd.Head.Branch]?.Tip;
@@ -300,7 +300,7 @@ namespace KbgSoft.KBGit
 
 			Hd.Trees.Add(Id.Create(treeNode), treeNode);
 
-			foreach (var blob in blobs.Where(x => !Hd.Blobs.ContainsKey(x.blobid)))
+			foreach (var blob in blobsInCommit.Where(x => !Hd.Blobs.ContainsKey(x.blobid)))
 			{
 				Hd.Blobs.Add(blob.blobid, blob.blob);
 			}
@@ -402,6 +402,9 @@ namespace KbgSoft.KBGit
 			}
 		}
 
+		/// <summary>
+		/// Clean out unreferences nodes. Equivalent to "git gc"
+		/// </summary>
 		public void Gc()
 		{
 			var reachables = Hd.Branches.Select(x => x.Value.Tip)
