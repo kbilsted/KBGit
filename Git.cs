@@ -119,6 +119,10 @@ namespace KbgSoft.KBGit
 	public class TreeNode
 	{
 		public ITreeLine[] Lines;
+		public TreeNode(ITreeLine[] lines)
+		{
+			Lines = lines;
+		}
 
 		public override string ToString() => string.Join("\n", Lines.Select(x => x.ToString()));
 	}
@@ -268,10 +272,7 @@ namespace KbgSoft.KBGit
 				blob = new BlobNode(x.Content)
 			}).ToArray();
 
-			var treeNode = new TreeNode()
-			{
-				Lines = blobsInCommit.Select(x => new BlobTreeLine(x.blobid, x.blob, x.file.Path)).ToArray(),
-			};
+			var treeNode = new TreeNode(blobsInCommit.Select(x => new BlobTreeLine(x.blobid, x.blob, x.file.Path)).ToArray());
 
 			var parentCommitId = Hd.Head.GetId(Hd);
 			var isFirstCommit = parentCommitId == null;
