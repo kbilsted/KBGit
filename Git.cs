@@ -179,6 +179,7 @@ namespace KbgSoft.KBGit
 	/// </summary>
 	public class KBGit
 	{
+		public const string KBGitFolderName = ".git";
 		private readonly string repositoryName;
 		public string CodeFolder { get; }
 		const string Datafile = "kbgit.json";
@@ -188,7 +189,7 @@ namespace KbgSoft.KBGit
 		{
 			this.repositoryName = repositoryName;
 			CodeFolder = startpath;
-			Path.Combine(CodeFolder, ".git", Datafile);
+			Path.Combine(CodeFolder, KBGitFolderName, Datafile);
 			LoadState();
 		}
 
