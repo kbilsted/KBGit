@@ -45,7 +45,10 @@ namespace KbgSoft.KBGit
 			Bytes = b;
 		}
 
-		public static Id Create(object o) => new Id(Sha.Compute(o));
+		/// <summary>
+		/// Equivalent to "git hash-object -w <file>"
+		/// </summary>
+		public static Id HashObject(object o) => new Id(Sha.Compute(o));
 
 		public override string ToString() => Sha.GetSha(Bytes);
 
@@ -281,7 +284,7 @@ namespace KbgSoft.KBGit
 				Parents = isFirstCommit ? new Id[0] : new[] {parentCommitId},
 			};
 
-			var treeNodeId = Id.Create(treeNode);
+			var treeNodeId = Id.HashObject(treeNode);
 			if(!Hd.Trees.ContainsKey(treeNodeId))
 				Hd.Trees.Add(treeNodeId, treeNode);
 
@@ -290,7 +293,7 @@ namespace KbgSoft.KBGit
 				Hd.Blobs.Add(blob.blobid, blob.blob);
 			}
 
-			var commitId = Id.Create(commit);
+			var commitId = Id.HashObject(commit);
 			Hd.Commits.Add(commitId, commit);
 
 			if (Hd.Head.IsDetachedHead())
