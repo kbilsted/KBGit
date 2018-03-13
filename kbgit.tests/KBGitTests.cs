@@ -1,16 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using KbgSoft.KBGit;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace kbgit.tests
 {
     public class KBGitTests
     {
+	    private readonly ITestOutputHelper output;
+
+		public KBGitTests(ITestOutputHelper output)
+		{
+			this.output = output;
+		}
 	    [Fact]
 	    public void CommitWhenHeadless()
 	    {
@@ -22,6 +30,24 @@ namespace kbgit.tests
 		    var id = git.Commit("headless commit", "a", new DateTime(2010, 11, 12), git.ScanFileSystem());
 
 			Assert.Equal("80f6435892b2757c08921ded9ed454846f6964933991fc4ded1f3296e338f316", id.ToString());
+	    }
+
+	    [Fact]
+	    public void When_Commit_a_similar_situation_to_a_previous_commit_Then_should_not_incread_blobs_nor_tree_blobs()
+	    {
+			StreamWriter sw = new StreamWriter(@"c:\src\out.txt") {AutoFlush = true};
+		    Console.SetOut(sw);
+
+		    var repoBuilder = new RepoBuilder("reponame", @"c:\temp\");
+		    var git = repoBuilder.BuildStandardRepo();
+		    repoBuilder.DeleteFile("b.txt");
+		    var blobCount = git.Hd.Blobs.Count;
+		    var treeBlobCount = git.Hd.Trees.Count;
+
+			git.Commit("deleted b", "arthur", new DateTime(2010, 11, 12), git.ScanFileSystem());
+
+			Assert.Equal(blobCount, git.Hd.Blobs.Count);
+			Assert.Equal(treeBlobCount, git.Hd.Trees.Count);
 	    }
 	}
 
@@ -62,8 +88,8 @@ namespace kbgit.tests
 
 	public class RepoBuilder
 	{
-		readonly string basePath ;
-		readonly string repositoryName ;
+		readonly string basePath;
+		readonly string repositoryName;
 
 		public RepoBuilder(string repositoryName, string basePath)
 		{
@@ -88,6 +114,12 @@ namespace kbgit.tests
 		public RepoBuilder AddFile(string path, string content)
 		{
 			File.WriteAllText(Path.Combine(basePath, path), content);
+			return this;
+		}
+
+		public RepoBuilder DeleteFile(string path)
+		{
+			File.Delete(Path.Combine(basePath, path));
 			return this;
 		}
 	}

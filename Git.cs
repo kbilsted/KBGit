@@ -60,12 +60,13 @@ namespace KbgSoft.KBGit
 
 		public override bool Equals(object obj)
 		{
-			return Bytes.Equals(((Id) obj).Bytes);
+			var otherbytes = ((Id) obj).Bytes;
+			return Bytes.Length == otherbytes.Length && Bytes.Select((x, i) => new {x, i}).All(o => o.x == otherbytes[o.i]);
 		}
 
 		public override int GetHashCode()
 		{
-			return 1182642244 + EqualityComparer<byte[]>.Default.GetHashCode(Bytes);
+			return Bytes.Aggregate(397 * Bytes.Length, (hash, aByte) => hash ^ (aByte * 397 * hash));
 		}
 	}
 
@@ -298,7 +299,9 @@ namespace KbgSoft.KBGit
 				Parents = isFirstCommit ? new Id[0] : new[] {parentCommitId},
 			};
 
-			Hd.Trees.Add(Id.Create(treeNode), treeNode);
+			var treeNodeId = Id.Create(treeNode);
+			if(!Hd.Trees.ContainsKey(treeNodeId))
+				Hd.Trees.Add(treeNodeId, treeNode);
 
 			foreach (var blob in blobsInCommit.Where(x => !Hd.Blobs.ContainsKey(x.blobid)))
 			{
