@@ -51,9 +51,15 @@ namespace KbgSoft.KBGit
 
 		public override bool Equals(object obj)
 		{
+			if (object.ReferenceEquals(obj, null))
+				return false;
 			var otherbytes = ((Id) obj).Bytes;
 			return Bytes.Length == otherbytes.Length && Bytes.Select((x, i) => new {x, i}).All(o => o.x == otherbytes[o.i]);
 		}
+
+		public static bool operator ==(Id a, Id b) => ReferenceEquals(a, b) || (!ReferenceEquals(a, null) && a.Equals(b));
+
+		public static bool operator !=(Id a, Id b) => !(a==b);
 
 		public override int GetHashCode() => Bytes.Aggregate(397 * Bytes.Length, (hash, aByte) => hash ^ (aByte * 397 * hash));
 	}
@@ -328,7 +334,7 @@ namespace KbgSoft.KBGit
 		{
 			void UpdateHead()
 			{
-				var branch = Hd.Branches.FirstOrDefault(x => x.Value.Equals(id));
+				var branch = Hd.Branches.FirstOrDefault(x => x.Value.Tip == id);
 				if (branch.Key == null)
 					Hd.Head.Update(id);
 				else
