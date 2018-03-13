@@ -1,7 +1,7 @@
-# KBGit - Git implemented in 500 lines of code (or less ...)
+# KBGit - Git implemented from scratch in 500 lines of code (or less ...)
 
 Project statistics:  <!--start-->
-[![Stats](https://img.shields.io/badge/Code_lines-224-ff69b4.svg)]()
+[![Stats](https://img.shields.io/badge/Code_lines-208-ff69b4.svg)]()
 [![Stats](https://img.shields.io/badge/Doc_lines-19-ff69b4.svg)]()
 <!--end-->
 
@@ -19,7 +19,8 @@ First, anything 500 lines of code should be explainable to any real programmer. 
 >	gets better!
 >	-- Terry A. Davis (https://templeos.sheikhs.space/Wb/Doc/Strategy.html)
 
-I wanted things to be fair. Now 500 lines of code is not a lot, and I could easily see myself spiraling into an code-obfuscation contest with myself in order to save lines of code. To prevent any code styles from getting in my way, I'm counting line using a   [simple line counting project](https://github.com/kbilsted/LineCounter.Net) which roughly counts all but blank lines (empty lines, lines only containing `{`, `}`,...). At the top of the readme you can track my progress.
+I want a fair game, and 500 lines of code is not a lot. To prevent myself from spiraling into an code-obfuscation contest in order to save a few lines of code, I'm counting lines using a [simple line counting library](https://github.com/kbilsted/LineCounter.Net) 
+which count only semantic lines (i.e. exclude empty lines, lines only containing `{`, `}`,...). At the top of the readme you can track my progress...
 
 
 ## Features implemented

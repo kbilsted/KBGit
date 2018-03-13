@@ -20,10 +20,7 @@ namespace KbgSoft.KBGit
 			return sha.ComputeHash(stream);
 		}
 
-		public static string GetSha(byte[] b)
-		{
-			return string.Join("", sha.ComputeHash(b).Select(x => String.Format("{0:x2}", x)));
-		}
+		public static string GetSha(byte[] b) => string.Join("", sha.ComputeHash(b).Select(x => String.Format("{0:x2}", x)));
 	}
 
 	public class FileInfo
@@ -48,15 +45,9 @@ namespace KbgSoft.KBGit
 			Bytes = b;
 		}
 
-		public static Id Create(object o)
-		{
-			return new Id(Sha.Compute(o));
-		}
+		public static Id Create(object o) => new Id(Sha.Compute(o));
 
-		public override string ToString()
-		{
-			return Sha.GetSha(Bytes);
-		}
+		public override string ToString() => Sha.GetSha(Bytes);
 
 		public override bool Equals(object obj)
 		{
@@ -64,10 +55,7 @@ namespace KbgSoft.KBGit
 			return Bytes.Length == otherbytes.Length && Bytes.Select((x, i) => new {x, i}).All(o => o.x == otherbytes[o.i]);
 		}
 
-		public override int GetHashCode()
-		{
-			return Bytes.Aggregate(397 * Bytes.Length, (hash, aByte) => hash ^ (aByte * 397 * hash));
-		}
+		public override int GetHashCode() => Bytes.Aggregate(397 * Bytes.Length, (hash, aByte) => hash ^ (aByte * 397 * hash));
 	}
 
 	public class Storage
@@ -113,15 +101,9 @@ namespace KbgSoft.KBGit
 			Id = id;
 		}
 
-		public bool IsDetachedHead()
-		{
-			return Id != null;
-		}
+		public bool IsDetachedHead() => Id != null;
 
-		public Id GetId(Storage s)
-		{
-			return Id ?? s.Branches[Branch].Tip;
-		}
+		public Id GetId(Storage s) => Id ?? s.Branches[Branch].Tip;
 	}
 
 	[Serializable]
@@ -129,10 +111,7 @@ namespace KbgSoft.KBGit
 	{
 		public ITreeLine[] Lines;
 
-		public override string ToString()
-		{
-			return string.Join("\n", Lines.Select(x => x.ToString()));
-		}
+		public override string ToString() => string.Join("\n", Lines.Select(x => x.ToString()));
 	}
 
 	public interface ITreeLine
@@ -152,10 +131,7 @@ namespace KbgSoft.KBGit
 			Path = path;
 		}
 
-		public override string ToString()
-		{
-			return "blob " + Id + " " + Path;
-		}
+		public override string ToString() => $"blob {Id} {Path}";
 	}
 
 	[Serializable]
@@ -324,19 +300,8 @@ namespace KbgSoft.KBGit
 		void ResetCodeFolder()
 		{
 			if (Directory.Exists(CodeFolder))
-			{
-				foreach (var entry in Directory.EnumerateFileSystemEntries(CodeFolder, "*", SearchOption.TopDirectoryOnly))
-				{
-					if (File.Exists(entry))
-						File.Delete(entry);
-					if (Directory.Exists(entry))
-						Directory.Delete(entry, true);
-				}
-			}
-			else
-			{
-				Directory.CreateDirectory(CodeFolder);
-			}
+				Directory.Delete(CodeFolder, true);
+			Directory.CreateDirectory(CodeFolder);
 		}
 
 		/// <summary>
@@ -443,7 +408,9 @@ namespace KbgSoft.KBGit
 			var current = Hd.Commits[id];
 			result.Add(new KeyValuePair<Id, CommitNode>(id, current));
 			foreach (var parent in current.Parents)
+			{
 				GetReachableNodes(parent, result);
+			}
 		}
 	}
 }
