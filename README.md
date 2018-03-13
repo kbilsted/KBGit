@@ -5,13 +5,10 @@ Project statistics:  <!--start-->
 [![Stats](https://img.shields.io/badge/Doc_lines-20-ff69b4.svg)]()
 <!--end-->
 
-I've been an avid user of Git and Hg for over 10 years - but I've never dug into their implementation details. 
-I did not long ago, and I found beaty! Such beauty that I wanted to share the great ideas of turning something as conceptually complex as a source code versioning system 
-into a simple implementation. 
+I've been an avid user of Git and Hg for over 10 years - but only recently did I dig into their implementation details. And 
+I found beauty! A very simple model for something as complex as a source code versioning system. So simple it can be implemented in 500 lines of code! 
 
-I want to code as much of Git's functionality in 500 lines of code or less! I chose to line limit this project for two reasons. 
-First, anything 500 lines of code should be explainable to any real programmer. Secondly, inspiration from Terry A. Davis' work on [TempleOS](http://www.templeos.org)
-
+I've line-limited this project for two reasons: Anything in 500 lines is explainable. Secondly, inspirations from Terry A. Davis' work on [TempleOS](http://www.templeos.org)
 
 >	Everybody is obsessed, Jedi mind-tricked, by the notion that when you scale-up, 
 >	it doesn't get bad, it gets worse.  They automatically think things are going to 
