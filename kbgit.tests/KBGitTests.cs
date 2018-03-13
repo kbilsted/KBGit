@@ -11,15 +11,8 @@ using Xunit.Abstractions;
 
 namespace kbgit.tests
 {
-    public class KBGitTests
+    public class KbGitTests
     {
-	    private readonly ITestOutputHelper output;
-
-		public KBGitTests(ITestOutputHelper output)
-		{
-			this.output = output;
-		}
-
 	    [Fact]
 	    public void CommitWhenHeadless()
 	    {
@@ -36,9 +29,6 @@ namespace kbgit.tests
 	    [Fact]
 	    public void When_Commit_a_similar_situation_to_a_previous_commit_Then_should_not_incread_blobs_nor_tree_blobs()
 	    {
-			StreamWriter sw = new StreamWriter(@"c:\src\out.txt") {AutoFlush = true};
-		    Console.SetOut(sw);
-
 		    var repoBuilder = new RepoBuilder("reponame", @"c:\temp\");
 		    var git = repoBuilder.BuildStandardRepo();
 		    repoBuilder.DeleteFile("b.txt");
@@ -56,11 +46,6 @@ namespace kbgit.tests
 		    return git.FileSystemScanFolder(path).ToString();
 	    }
 
-		/*
-	     * Folder structure
-	     *  car.txt
-	     *  door.txt
-	     */
 		[Fact]
 	    public void Given_two_toplevel_files_Then_()
 	    {
@@ -69,17 +54,13 @@ namespace kbgit.tests
 		    repoBuilder.AddFile("car.txt", "car");
 		    repoBuilder.AddFile("door.txt", "door");
 
+		    var files = FileSystemScanFolder(git, @"c:\temp\");
+
 		    Assert.Equal(@"tree 2 
 blob car.txt
-blob door.txt",  FileSystemScanFolder(git, @"c:\temp\"));
+blob door.txt",  files);
 	    }
 
-		/*
-		 * Folder structure
-		 * FeatureVolvo
-		 *  - car.txt
-		 *  - door.txt
-		 */
 		[Fact]
 		public void Given_two_files_in_subfolder_Then_()
 	    {
@@ -88,24 +69,15 @@ blob door.txt",  FileSystemScanFolder(git, @"c:\temp\"));
 		    repoBuilder.AddFile(@"FeatureVolvo\car.txt", "car");
 		    repoBuilder.AddFile(@"FeatureVolvo\door.txt", "door");
 
-			Assert.Equal(
+		    var files = FileSystemScanFolder(git, @"c:\temp\");
+
+		    Assert.Equal(
 @"tree 1 
 tree 2 FeatureVolvo
 blob FeatureVolvo\car.txt
-blob FeatureVolvo\door.txt", FileSystemScanFolder(git, @"c:\temp\"));
+blob FeatureVolvo\door.txt", files);
 		}
 
-		/*
-		 * Folder structure
-		 * FeatureVolvo
-		 *  - car.txt
-		 * FeatureGarden
-		 *  - tree.txt
-		 *  - shovel.txt
-		 *   Suburb
-		 *   - grass.txt
-		 *   - mover.txt
-		 */
 		[Fact]
 		public void Get_folders_and_files()
 	    {
@@ -116,7 +88,11 @@ blob FeatureVolvo\door.txt", FileSystemScanFolder(git, @"c:\temp\"));
 		    repoBuilder.AddFile(@"FeatureGarden\shovel.txt", "shovel");
 		    repoBuilder.AddFile(@"FeatureGarden\Suburb\grass.txt", "grass");
 		    repoBuilder.AddFile(@"FeatureGarden\Suburb\mover.txt", "mover");
-		    Assert.Equal(@"tree 2 
+
+		    var files = FileSystemScanFolder(git, @"c:\temp\");
+
+		    Assert.Equal(
+@"tree 2 
 tree 3 FeatureGarden
 blob FeatureGarden\shovel.txt
 blob FeatureGarden\tree.txt
@@ -125,7 +101,7 @@ blob FeatureGarden\Suburb\grass.txt
 blob FeatureGarden\Suburb\mover.txt
 tree 1 FeatureVolvo
 blob FeatureVolvo\car.txt"
-			    , FileSystemScanFolder(git, @"c:\temp\"));
+			    , files);
 	    }
 
 	    [Fact]
