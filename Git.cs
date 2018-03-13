@@ -230,17 +230,17 @@ namespace KbgSoft.KBGit
 		public void Checkout(string branch)
 		{
 			var name = FullName(branch);
-			if (Hd.Branches.ContainsKey(name))
-				Hd.Head.Update(Hd.Branches[name].Tip);
+			if (!Hd.Branches.ContainsKey(name))
+				throw new ArgumentOutOfRangeException($"No branch named \'{name}\'");
 
-			throw new ArgumentOutOfRangeException($"No branch named \'{name}\'");
+			Hd.Head.Update(Hd.Branches[name].Tip);
 		}
 
 		/// <summary> update head to an ID</summary>
 		public void Checkout(Id position)
 		{
 			if (!Hd.Commits.ContainsKey(position))
-				throw new ArgumentOutOfRangeException("No commit id " + position);
+				throw new ArgumentOutOfRangeException($"No commit id {position}");
 
 			Hd.Head.Update(position);
 		}
