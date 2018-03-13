@@ -10,6 +10,15 @@ namespace KbgSoft.KBGit
 	public static class Sha
 	{
 		static readonly SHA256 sha = SHA256.Create();
+		//public static string GetSha(string s)
+		//{
+		//    return GetSha(sha.ComputeHash(Encoding.UTF8.GetBytes(s)));
+		//}
+
+		//public static byte[] Compute(string s)
+		//{
+		//    return sha.ComputeHash(Encoding.UTF8.GetBytes(s));
+		//}
 
 		public static byte[] Compute(object o)
 		{
@@ -38,7 +47,7 @@ namespace KbgSoft.KBGit
 	[Serializable]
 	public class Id
 	{
-		public byte[] Bytes { get; private set; }
+		public byte[] Bytes { get; private set; } // TODO change to string of sha
 
 		public Id(byte[] b)
 		{
@@ -128,10 +137,12 @@ namespace KbgSoft.KBGit
 	}
 
 	public interface ITreeLine
-	{ }
+	{
+		void Visit(Action<ITreeLine> code);
+	}
 
 	[Serializable]
-	class BlobTreeLine : ITreeLine
+	public class BlobTreeLine : ITreeLine
 	{
 		public Id Id { get; private set; }
 		public BlobNode Blob { get; private set; }
@@ -144,7 +155,34 @@ namespace KbgSoft.KBGit
 			Path = path;
 		}
 
-		public override string ToString() => $"blob {Id} {Path}";
+		public override string ToString() => $"blob {Path}";
+
+		public void Visit(Action<ITreeLine> code) => code(this);
+	}
+
+	[Serializable]
+	public class TreeTreeLine : ITreeLine
+	{
+		public Id Id { get; private set; }
+		public TreeNode Tree { get; private set; }
+		public string Path { get; private set; }
+
+		public TreeTreeLine(Id id, TreeNode tree, string path)
+		{
+			Id = id;
+			Tree = tree;
+			Path = path;
+		}
+
+		public override string ToString() => $"tree {Tree.Lines.Length} {Path}\r\n{string.Join("\r\n", Tree.Lines.Select(x => x.ToString()))}";
+
+		public void Visit(Action<ITreeLine> code)
+		{
+			code(this);
+
+			foreach (var line in Tree.Lines)
+				line.Visit(code);
+		}
 	}
 
 	[Serializable]
@@ -422,6 +460,34 @@ namespace KbgSoft.KBGit
 			{
 				GetReachableNodes(parent, result);
 			}
+		}
+
+		public TreeTreeLine FileSystemScanFolder(string path) => MakeTreeTreeLine(path);
+
+		public ITreeLine[] FileSystemScanSubFolder(string path)
+		{
+			var entries = new DirectoryInfo(path).EnumerateFileSystemInfos("*", SearchOption.TopDirectoryOnly).ToArray();
+
+			var tree = new List<ITreeLine>();
+
+			tree.AddRange(entries.OfType<FileInfo>()
+				.Select(x => new {Content = File.ReadAllText(x.FullName), x.FullName})
+				.Select(x => new BlobTreeLine(new Id(Sha.Compute(x.Content)), new BlobNode(x.Content), x.FullName.Substring(CodeFolder.Length))));
+
+			tree.AddRange(entries.OfType<DirectoryInfo>()
+				.Where(x => !x.FullName.EndsWith(KBGitFolderName))
+				.Select(x => MakeTreeTreeLine(x.FullName)));
+
+			return tree.ToArray();
+		}
+
+		private TreeTreeLine MakeTreeTreeLine(string path)
+		{
+			var folderentries = FileSystemScanSubFolder(path);
+			var treenode = new TreeNode(folderentries);
+			var id = Id.HashObject(folderentries);
+
+			return new TreeTreeLine(id, treenode, path.Substring(CodeFolder.Length));
 		}
 	}
 }

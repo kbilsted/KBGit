@@ -50,6 +50,112 @@ namespace kbgit.tests
 			Assert.Equal(blobCount, git.Hd.Blobs.Count);
 			Assert.Equal(treeBlobCount, git.Hd.Trees.Count);
 	    }
+
+	    public string FileSystemScanFolder(KBGit git, string path)
+	    {
+		    return git.FileSystemScanFolder(path).ToString();
+	    }
+
+		/*
+	     * Folder structure
+	     *  car.txt
+	     *  door.txt
+	     */
+		[Fact]
+	    public void Given_two_toplevel_files_Then_()
+	    {
+		    var repoBuilder = new RepoBuilder("", @"c:\temp\");
+		    var git = repoBuilder.BuildEmptyRepo();
+		    repoBuilder.AddFile("car.txt", "car");
+		    repoBuilder.AddFile("door.txt", "door");
+
+		    Assert.Equal(@"tree 2 
+blob car.txt
+blob door.txt",  FileSystemScanFolder(git, @"c:\temp\"));
+	    }
+
+		/*
+		 * Folder structure
+		 * FeatureVolvo
+		 *  - car.txt
+		 *  - door.txt
+		 */
+		[Fact]
+		public void Given_two_files_in_subfolder_Then_()
+	    {
+		    var repoBuilder = new RepoBuilder("", @"c:\temp\");
+		    var git = repoBuilder.BuildEmptyRepo();
+		    repoBuilder.AddFile(@"FeatureVolvo\car.txt", "car");
+		    repoBuilder.AddFile(@"FeatureVolvo\door.txt", "door");
+
+			Assert.Equal(
+@"tree 1 
+tree 2 FeatureVolvo
+blob FeatureVolvo\car.txt
+blob FeatureVolvo\door.txt", FileSystemScanFolder(git, @"c:\temp\"));
+		}
+
+		/*
+		 * Folder structure
+		 * FeatureVolvo
+		 *  - car.txt
+		 * FeatureGarden
+		 *  - tree.txt
+		 *  - shovel.txt
+		 *   Suburb
+		 *   - grass.txt
+		 *   - mover.txt
+		 */
+		[Fact]
+		public void Get_folders_and_files()
+	    {
+		    var repoBuilder = new RepoBuilder("", @"c:\temp\");
+		    var git = repoBuilder.BuildEmptyRepo();
+		    repoBuilder.AddFile(@"FeatureVolvo\car.txt", "car");
+		    repoBuilder.AddFile(@"FeatureGarden\tree.txt", "tree");
+		    repoBuilder.AddFile(@"FeatureGarden\shovel.txt", "shovel");
+		    repoBuilder.AddFile(@"FeatureGarden\Suburb\grass.txt", "grass");
+		    repoBuilder.AddFile(@"FeatureGarden\Suburb\mover.txt", "mover");
+		    Assert.Equal(@"tree 2 
+tree 3 FeatureGarden
+blob FeatureGarden\shovel.txt
+blob FeatureGarden\tree.txt
+tree 2 FeatureGarden\Suburb
+blob FeatureGarden\Suburb\grass.txt
+blob FeatureGarden\Suburb\mover.txt
+tree 1 FeatureVolvo
+blob FeatureVolvo\car.txt"
+			    , FileSystemScanFolder(git, @"c:\temp\"));
+	    }
+
+	    [Fact]
+	    public void Visit()
+	    {
+		    var repoBuilder = new RepoBuilder("", @"c:\temp\");
+		    var git = repoBuilder.BuildEmptyRepo();
+		    repoBuilder.AddFile(@"FeatureVolvo\car.txt", "car");
+		    repoBuilder.AddFile(@"FeatureGarden\tree.txt", "tree");
+		    repoBuilder.AddFile(@"FeatureGarden\shovel.txt", "shovel");
+		    repoBuilder.AddFile(@"FeatureGarden\Suburb\grass.txt", "grass");
+		    string buf = "";
+		    git.FileSystemScanFolder(@"c:\temp\").Visit(x =>
+			{
+				if (x is TreeTreeLine t)
+					buf += $"visittree {t.Path}\r\n";
+				if (x is BlobTreeLine b)
+					buf += $"visitblob {b.Path}\r\n";
+			});
+
+		    Assert.Equal(@"visittree 
+visittree FeatureGarden
+visitblob FeatureGarden\shovel.txt
+visitblob FeatureGarden\tree.txt
+visittree FeatureGarden\Suburb
+visitblob FeatureGarden\Suburb\grass.txt
+visittree FeatureVolvo
+visitblob FeatureVolvo\car.txt
+", buf);
+	    }
 	}
 
 	public class KBGitHeadTests
@@ -98,10 +204,16 @@ namespace kbgit.tests
 			this.repositoryName = repositoryName;
 		}
 
-		public KBGit BuildStandardRepo()
+		public KBGit BuildEmptyRepo()
 		{
 			var git = new KBGit(repositoryName, basePath);
 			git.Init();
+			return git;
+		}
+
+		public KBGit BuildStandardRepo()
+		{
+			var git = BuildEmptyRepo();
 
 			AddFile("a.txt", "aaaaa");
 			git.Commit("Add a", "kasper", new DateTime(2018,1,1,1,1,1), git.ScanFileSystem());
@@ -114,7 +226,10 @@ namespace kbgit.tests
 
 		public RepoBuilder AddFile(string path, string content)
 		{
-			File.WriteAllText(Path.Combine(basePath, path), content);
+			var filepath = Path.Combine(basePath, path);
+			new FileInfo(filepath).Directory.Create(); 
+
+			File.WriteAllText(filepath, content);
 			return this;
 		}
 
