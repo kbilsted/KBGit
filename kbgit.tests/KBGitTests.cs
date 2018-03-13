@@ -19,6 +19,7 @@ namespace kbgit.tests
 		{
 			this.output = output;
 		}
+
 	    [Fact]
 	    public void CommitWhenHeadless()
 	    {

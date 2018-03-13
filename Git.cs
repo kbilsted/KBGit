@@ -23,12 +23,12 @@ namespace KbgSoft.KBGit
 		public static string GetSha(byte[] b) => string.Join("", sha.ComputeHash(b).Select(x => String.Format("{0:x2}", x)));
 	}
 
-	public class FileInfo
+	public class Fileinfo
 	{
 		public readonly string Path;
 		public readonly string Content;
 
-		public FileInfo(string path, string content)
+		public Fileinfo(string path, string content)
 		{
 			Path = path;
 			Content = content;
@@ -259,9 +259,9 @@ namespace KbgSoft.KBGit
 			return result;
 		}
 
-		public Id Commit(string message, string author, DateTime now, params FileInfo[] fileInfo)
+		public Id Commit(string message, string author, DateTime now, params Fileinfo[] fileinfo)
 		{
-			var blobsInCommit = fileInfo.Select(x => new
+			var blobsInCommit = fileinfo.Select(x => new
 			{
 				file = x,
 				blobid = new Id(Sha.Compute(x.Content)),
@@ -398,10 +398,10 @@ namespace KbgSoft.KBGit
 			}
 		}
 
-		public FileInfo[] ScanFileSystem()
+		public Fileinfo[] ScanFileSystem()
 		{
 			return new DirectoryInfo(CodeFolder).EnumerateFiles("*", SearchOption.AllDirectories)
-				.Select(x => new FileInfo(x.FullName.Substring(CodeFolder.Length), File.ReadAllText(x.FullName)))
+				.Select(x => new Fileinfo(x.FullName.Substring(CodeFolder.Length), File.ReadAllText(x.FullName)))
 				.ToArray();
 		}
 
