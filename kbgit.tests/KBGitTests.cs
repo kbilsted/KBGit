@@ -1,13 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using KbgSoft.KBGit;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace kbgit.tests
 {
@@ -45,10 +40,10 @@ namespace kbgit.tests
 			Assert.Equal(treeBlobCount, git.Hd.Trees.Count);
 	    }
 
-	    public string FileSystemScanFolder(KBGit git, string path)
-	    {
-		    return git.FileSystemScanFolder(path).ToString();
-	    }
+		public string FileSystemScanFolder(KBGit git)
+		{
+			return git.FileSystemScanFolder(git.CodeFolder).ToString();
+		}
 
 		[Fact]
 	    public void Given_two_toplevel_files_Then_()
@@ -58,7 +53,7 @@ namespace kbgit.tests
 		    repoBuilder.AddFile("car.txt", "car");
 		    repoBuilder.AddFile("door.txt", "door");
 
-		    var files = FileSystemScanFolder(git, @"c:\temp\");
+			var files = FileSystemScanFolder(git);
 
 		    Assert.Equal(@"tree 2 
 blob car.txt
@@ -73,7 +68,7 @@ blob door.txt",  files);
 		    repoBuilder.AddFile(@"FeatureVolvo\car.txt", "car");
 		    repoBuilder.AddFile(@"FeatureVolvo\door.txt", "door");
 
-		    var files = FileSystemScanFolder(git, @"c:\temp\");
+			var files = FileSystemScanFolder(git);
 
 		    Assert.Equal(
 @"tree 1 
@@ -93,7 +88,7 @@ blob FeatureVolvo\door.txt", files);
 		    repoBuilder.AddFile(@"FeatureGarden\Suburb\grass.txt", "grass");
 		    repoBuilder.AddFile(@"FeatureGarden\Suburb\mover.txt", "mover");
 
-		    var files = FileSystemScanFolder(git, @"c:\temp\");
+			var files = FileSystemScanFolder(git);
 
 		    Assert.Equal(
 @"tree 2 
@@ -118,7 +113,7 @@ blob FeatureVolvo\car.txt"
 		    repoBuilder.AddFile(@"FeatureGarden\shovel.txt", "shovel");
 		    repoBuilder.AddFile(@"FeatureGarden\Suburb\grass.txt", "grass");
 		    string buf = "";
-		    git.FileSystemScanFolder(@"c:\temp\").Visit(x =>
+			git.FileSystemScanFolder(git.CodeFolder).Visit(x =>
 			{
 				if (x is TreeTreeLine t)
 					buf += $"visittree {t.Path}\r\n";
@@ -190,6 +185,39 @@ visitblob FeatureVolvo\car.txt
 			repoBuilder.Git.CheckOut(id2);
 			Assert.Equal("version 2 a", repoBuilder.ReadFile(filename));
 		}
+
+		[Fact]
+		public void When_detached_head_Then_git_branches_shows_detached_as_branch()
+		{
+			var repoBuilder = new RepoBuilder("a", @"c:\temp\");
+			var detachedId = repoBuilder
+				.EmptyRepo()
+				.AddFile("a.txt")
+				.Commit();
+			repoBuilder
+				.AddFile("b.txt")
+				.Commit();
+
+			repoBuilder.Git.CheckOut(detachedId);
+
+			Assert.Equal($@"* (HEAD detached at {detachedId.ToString().Substring(0, 7)})
+  a/master", repoBuilder.Git.Branch());
+		}
+
+		[Fact]
+		public void When_branching_Then_Branchinfo_show_new_branchname()
+		{
+			var repoBuilder = new RepoBuilder("a", @"c:\temp\");
+			repoBuilder
+				.EmptyRepo()
+				.AddFile("a.txt")
+				.Commit();
+			Assert.Equal("* a/master", repoBuilder.Git.Branch());
+
+			repoBuilder.NewBranch("featurebranch");
+			Assert.Equal(@"* a/featurebranch
+  a/master", repoBuilder.Git.Branch());
+		}
 	}
 
 	public class RepoBuilder
@@ -234,10 +262,11 @@ visitblob FeatureVolvo\car.txt
 			return Git;
 		}
 
+		public RepoBuilder AddFile(string path) => AddFile(path, Guid.NewGuid().ToString());
 		public RepoBuilder AddFile(string path, string content)
 		{
-			var filepath = Path.Combine(basePath, path);
-			new FileInfo(filepath).Directory.Create(); 
+			var filepath = Path.Combine(Git.CodeFolder, path);
+			new FileInfo(filepath).Directory.Create();
 
 			File.WriteAllText(filepath, content);
 			return this;
@@ -257,6 +286,12 @@ visitblob FeatureVolvo\car.txt
 		public Id Commit()
 		{
 			return Git.Commit("some message", "author", DateTime.Now, Git.ScanFileSystem());
+		}
+
+		public RepoBuilder NewBranch(string branch)
+		{
+			Git.CheckOut_b(branch);
+			return this;
 		}
 	}
 }

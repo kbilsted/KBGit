@@ -227,9 +227,9 @@ namespace KbgSoft.KBGit
 		public KBGit(string repositoryName, string startpath)
 		{
 			this.repositoryName = repositoryName;
-			CodeFolder = startpath;
-			Path.Combine(CodeFolder, KBGitFolderName, Datafile);
 			LoadState();
+			CodeFolder = Path.Combine(startpath, $"kbgit\\{Guid.NewGuid()}\\");
+			// Path.Combine(CodeFolder, KBGitFolderName, Datafile);
 		}
 
 		public string FullName(string branchname) => branchname.Contains("/") ? branchname : repositoryName + "/" + branchname;
@@ -525,6 +525,21 @@ namespace KbgSoft.KBGit
 			var id = Id.HashObject(folderentries);
 
 			return new TreeTreeLine(id, treenode, path.Substring(CodeFolder.Length));
+		}
+
+		/// <summary>
+		/// return all branches and highlight current branch: "git branch"
+		/// </summary>
+		public string Branch()
+		{
+			var branched = Hd.Branches
+				.OrderBy(x => x.Key)
+				.Select(x => $"{(Hd.Head.Branch == x.Key ? "*" : " ")} {x.Key}");
+			var headInfo = Hd.Head.IsDetachedHead()
+				? new[] { $"* (HEAD detached at {Hd.Head.Id.ToString().Substring(0, 7)})" }
+				: new string[0];
+
+			return string.Join("\r\n", headInfo.Concat(branched));
 		}
 	}
 }

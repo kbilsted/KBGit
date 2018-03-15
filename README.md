@@ -1,8 +1,8 @@
 # KBGit - Git implemented from scratch in 500 lines of code (or less ...)
 
 Project statistics:  <!--start-->
-[![Stats](https://img.shields.io/badge/Code_lines-245-ff69b4.svg)]()
-[![Stats](https://img.shields.io/badge/Doc_lines-20-ff69b4.svg)]()
+[![Stats](https://img.shields.io/badge/Code_lines-278-ff69b4.svg)]()
+[![Stats](https://img.shields.io/badge/Doc_lines-21-ff69b4.svg)]()
 <!--end-->
 
 I've been an avid user of Git and Hg for over 10 years - but only recently did I dig into their implementation details. And 
@@ -24,10 +24,14 @@ which count only semantic lines (i.e. exclude empty lines, lines only containing
 
  * commits
  * branches
- * detached heads
+   * create
+   * delete
+   * list
+   * detached heads
+   * move branch pointer
  * checkout old commits
  * logging (90%)
-
+ * update 
 
 ## planned work 
 	
