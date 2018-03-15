@@ -190,6 +190,7 @@ namespace KbgSoft.KBGit
 	{
 		public DateTime Time;
 		public TreeNode Tree;
+		public Id TreeId;
 		public string Author;
 		public string Message;
 		public Id[] Parents = new Id[0];
@@ -300,6 +301,42 @@ namespace KbgSoft.KBGit
 			}
 
 			return result;
+		}
+
+		public Id Commit(string message, string author, DateTime now)
+		{
+			var composite = FileSystemScanFolder(CodeFolder);
+			composite.Visit(x =>
+			{
+				if (x is TreeTreeLine t)
+					Hd.Trees.TryAdd(t.Id, t.Tree);
+				if (x is BlobTreeLine b)
+					Hd.Blobs.TryAdd(b.Id, b.Blob);
+			});
+
+			var parentCommitId = Hd.Head.GetId(Hd);
+			var isFirstCommit = parentCommitId == null;
+			var commit = new CommitNode
+			{
+				Time = now,
+				Tree = composite.Tree,
+				TreeId = composite.Id,
+				Author = author,
+				Message = message,
+				Parents = isFirstCommit ? new Id[0] : new[] { parentCommitId },
+			};
+
+			var commitId = Id.HashObject(commit);
+			Hd.Commits.Add(commitId, commit);
+
+			if (Hd.Head.IsDetachedHead())
+				Hd.Head.Update(commitId);
+			else
+				Hd.Branches[Hd.Head.Branch].Tip = commitId;
+
+			SaveState();
+
+			return commitId;
 		}
 
 		public Id Commit(string message, string author, DateTime now, params Fileinfo[] fileinfo)
