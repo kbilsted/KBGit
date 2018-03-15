@@ -17,21 +17,25 @@ namespace kbgit.tests
 	    public void CommitWhenHeadless()
 	    {
 		    var repoBuilder = new RepoBuilder("reponame", @"c:\temp\");
-		    var git = repoBuilder.BuildStandardRepo();
+		    var git = repoBuilder.Build2Files3Commits();
 			git.CheckOut(git.HeadRef(1));
 		    repoBuilder.AddFile("newfile", "dslfk");
 
 		    var id = git.Commit("headless commit", "a", new DateTime(2010, 11, 12), git.ScanFileSystem());
 
-			Assert.Equal("80f6435892b2757c08921ded9ed454846f6964933991fc4ded1f3296e338f316", id.ToString());
+			Assert.Equal("d9f76d36a423a4689a4f24d6f9d82e7804575a411d9897de36a4044e73c08b50", id.ToString());
 	    }
 
 	    [Fact]
 	    public void When_Commit_a_similar_situation_to_a_previous_commit_Then_should_not_incread_blobs_nor_tree_blobs()
 	    {
 		    var repoBuilder = new RepoBuilder("reponame", @"c:\temp\");
-		    var git = repoBuilder.BuildStandardRepo();
-		    repoBuilder.DeleteFile("b.txt");
+		    var git = repoBuilder.BuildEmptyRepo();
+		    repoBuilder.AddFile("a.txt", "aaaaa");
+		    git.Commit("Add a", "kasper", new DateTime(2017, 1, 1, 1, 1, 1), git.ScanFileSystem());
+			repoBuilder.AddFile("b.txt", "bbbb");
+		    git.Commit("Add b", "kasper", new DateTime(2017, 2, 2, 2, 2, 2), git.ScanFileSystem());
+			repoBuilder.DeleteFile("b.txt");
 		    var blobCount = git.Hd.Blobs.Count;
 		    var treeBlobCount = git.Hd.Trees.Count;
 
@@ -139,33 +143,52 @@ visitblob FeatureVolvo\car.txt
 		[Fact]
 		public void Given_fresh_repo_When_getting_headinfo_Then_fail()
 		{
-			var git = new KBGit("reponame", @"c:\temp\");
-			git.Init();
+			var git = new RepoBuilder("reponame", @"c:\temp\").BuildEmptyRepo();
 
-			var id = git.Hd.Head.GetId(git.Hd);
-
-			Assert.Null(id);
+			Assert.Null(git.Hd.Head.GetId(git.Hd));
 		}
 
 		[Fact]
 		public void Given_repo_When_getting_headinfo_Then_return_info()
 		{
-			var git = new RepoBuilder("reponame", @"c:\temp\").BuildStandardRepo();
+			var repoBuilder = new RepoBuilder("reponame", @"c:\temp\");
+			var git = repoBuilder.BuildEmptyRepo();
+			repoBuilder.AddFile("a.txt", "aaa");
 
-			var id = git.Hd.Head.GetId(git.Hd);
-
-			Assert.Equal("d0843b87b01755eb213325fdcd26956fba7df004b90cba17afca44f5f80d7a80", id.ToString());
+			var firstId = git.Commit("b", "c", DateTime.Now);
+			Assert.Equal(firstId, git.Hd.Head.GetId(git.Hd));
 		}
 
 		[Fact]
 		public void Given_repo_When_getting_HeadRef_1_Then_return_parent_of_HEAD()
 		{
-			var git = new RepoBuilder("reponame", @"c:\temp").BuildStandardRepo();
-
-			var id = git.HeadRef(1);
+			var git = new RepoBuilder("reponame", @"c:\temp").Build2Files3Commits();
 			var parentOfHead = git.Hd.Commits[git.Hd.Head.GetId(git.Hd)].Parents.First();
 
-			Assert.Equal(parentOfHead.ToString(), id.ToString());
+			Assert.Equal(parentOfHead, git.HeadRef(1));
+		}
+	}
+
+
+	public class GitCommitTests
+	{
+		[Fact]
+		public void When_Commit_Then_content_is_stored()
+		{
+			var repoBuilder = new RepoBuilder("a", @"c:\temp\");
+			var filename = "a.txt";
+			var id1 = repoBuilder
+				.EmptyRepo()
+				.AddFile(filename, "version 1 a")
+				.Commit();
+			var id2 = repoBuilder
+				.AddFile(filename, "version 2 a")
+				.Commit();
+
+			repoBuilder.Git.CheckOut(id1);
+			Assert.Equal("version 1 a", repoBuilder.ReadFile(filename));
+			repoBuilder.Git.CheckOut(id2);
+			Assert.Equal("version 2 a", repoBuilder.ReadFile(filename));
 		}
 	}
 
@@ -173,6 +196,7 @@ visitblob FeatureVolvo\car.txt
 	{
 		readonly string basePath;
 		readonly string repositoryName;
+		public KBGit Git;
 
 		public RepoBuilder(string repositoryName, string basePath)
 		{
@@ -182,22 +206,32 @@ visitblob FeatureVolvo\car.txt
 
 		public KBGit BuildEmptyRepo()
 		{
-			var git = new KBGit(repositoryName, basePath);
-			git.Init();
-			return git;
+			Git = new KBGit(repositoryName, basePath);
+			Git.Init();
+			return Git;
 		}
 
-		public KBGit BuildStandardRepo()
+		public RepoBuilder EmptyRepo()
 		{
-			var git = BuildEmptyRepo();
+			Git = new KBGit(repositoryName, basePath);
+			Git.Init();
+			return this;
+		}
+
+		public KBGit Build2Files3Commits()
+		{
+			Git = BuildEmptyRepo();
 
 			AddFile("a.txt", "aaaaa");
-			git.Commit("Add a", "kasper", new DateTime(2018,1,1,1,1,1), git.ScanFileSystem());
+			Git.Commit("Add a", "kasper", new DateTime(2017,1,1,1,1,1), Git.ScanFileSystem());
 
 			AddFile("b.txt", "bbbb");
-			git.Commit("Add b", "kasper", new DateTime(2017, 2, 2, 2, 2, 2), git.ScanFileSystem());
+			Git.Commit("Add b", "kasper", new DateTime(2017, 2, 2, 2, 2, 2), Git.ScanFileSystem());
 
-			return git;
+			AddFile("a.txt", "v2av2av2av2a");
+			Git.Commit("Add a2", "kasper", new DateTime(2017, 3, 3, 3, 3, 3), Git.ScanFileSystem());
+
+			return Git;
 		}
 
 		public RepoBuilder AddFile(string path, string content)
@@ -209,10 +243,20 @@ visitblob FeatureVolvo\car.txt
 			return this;
 		}
 
+		public string ReadFile(string path)
+		{
+			return File.ReadAllText(Path.Combine(Git.CodeFolder, path));
+		}
+
 		public RepoBuilder DeleteFile(string path)
 		{
 			File.Delete(Path.Combine(basePath, path));
 			return this;
+		}
+
+		public Id Commit()
+		{
+			return Git.Commit("some message", "author", DateTime.Now, Git.ScanFileSystem());
 		}
 	}
 }
