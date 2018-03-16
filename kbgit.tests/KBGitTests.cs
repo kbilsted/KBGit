@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using KbgSoft.KBGit;
@@ -184,6 +185,28 @@ visitblob FeatureVolvo\car.txt
 			Assert.Equal("version 1 a", repoBuilder.ReadFile(filename));
 			repoBuilder.Git.CheckOut(id2);
 			Assert.Equal("version 2 a", repoBuilder.ReadFile(filename));
+		}
+
+		[Fact]
+		public void When_branching_and_commit_and_update_back_Then_reset_content_to_old_branch()
+		{
+			var repoBuilder = new RepoBuilder("a", @"c:\temp\");
+			repoBuilder
+				.EmptyRepo()
+				.AddFile("a.txt", "version 1 a")
+				.Commit();
+			repoBuilder.NewBranch("featurebranch")
+				.AddFile("b.txt", "version 1 b")
+				.Commit();
+			IEnumerable<string> FilesInRepo() => repoBuilder.Git.ScanFileSystem().Select(x => x.Path);
+
+			Assert.Equal(new[] {"a.txt", "b.txt"}, FilesInRepo());
+
+			repoBuilder.Git.CheckOut("master");
+			Assert.Equal(new[] { "a.txt" }, FilesInRepo());
+
+			repoBuilder.Git.CheckOut("featurebranch");
+			Assert.Equal(new[] { "a.txt", "b.txt" }, FilesInRepo());
 		}
 
 		[Fact]
