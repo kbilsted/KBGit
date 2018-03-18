@@ -163,7 +163,7 @@ visitblob FeatureVolvo\car.txt
 		[Fact]
 		public void Given_repo_When_getting_HeadRef_1_Then_return_parent_of_HEAD()
 		{
-			var git = new RepoBuilder("reponame", @"c:\temp").Build2Files3Commits();
+			var git = new RepoBuilder().Build2Files3Commits();
 			var parentOfHead = git.Hd.Commits[git.Hd.Head.GetId(git.Hd)].Parents.First();
 
 			Assert.Equal(parentOfHead, git.HeadRef(1));
@@ -172,7 +172,7 @@ visitblob FeatureVolvo\car.txt
 		[Fact]
 		public void When_detached_head_and_commit_move_Then_update_head()
 		{
-			var repoBuilder = new RepoBuilder("a", @"c:\temp\");
+			var repoBuilder = new RepoBuilder();
 			var detachedId = repoBuilder
 				.EmptyRepo()
 				.AddFile("a.txt")
@@ -197,7 +197,7 @@ visitblob FeatureVolvo\car.txt
 		[Fact]
 		public void When_Commit_Then_content_is_stored()
 		{
-			var repoBuilder = new RepoBuilder("a", @"c:\temp\");
+			var repoBuilder = new RepoBuilder();
 			var filename = "a.txt";
 			var id1 = repoBuilder
 				.EmptyRepo()
@@ -209,6 +209,7 @@ visitblob FeatureVolvo\car.txt
 
 			repoBuilder.Git.Checkout(id1);
 			Assert.Equal("version 1 a", repoBuilder.ReadFile(filename));
+
 			repoBuilder.Git.Checkout(id2);
 			Assert.Equal("version 2 a", repoBuilder.ReadFile(filename));
 		}
@@ -216,7 +217,7 @@ visitblob FeatureVolvo\car.txt
 		[Fact]
 		public void When_branching_and_commit_and_update_back_Then_reset_content_to_old_branch()
 		{
-			var repoBuilder = new RepoBuilder("a", @"c:\temp\");
+			var repoBuilder = new RepoBuilder();
 			repoBuilder
 				.EmptyRepo()
 				.AddFile("a.txt", "version 1 a")

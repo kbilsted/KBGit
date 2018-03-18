@@ -10,6 +10,8 @@ namespace kbgit.tests
 		readonly string repositoryName;
 		public KBGit Git;
 
+		public RepoBuilder() : this("reponame", @"c:\temp\") { }
+
 		public RepoBuilder(string repositoryName, string basePath)
 		{
 			this.basePath = basePath;
