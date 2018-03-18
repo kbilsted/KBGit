@@ -107,16 +107,32 @@ namespace KbgSoft.KBGit
 		public Id Id { get; private set; }
 		public string Branch { get; private set; }
 
-		public void Update(string branch)
+		public void Update(string branch, Storage s)
 		{
+			if (!s.Branches.ContainsKey(branch))
+				throw new ArgumentOutOfRangeException($"No branch named \'{branch}\'");
+
 			Branch = branch;
 			Id = null;
 		}
 
-		public void Update(Id id)
+		public void Update(Id position, Storage s)
 		{
-			Branch = null;
-			Id = id;
+			var b = s.Branches.FirstOrDefault(x => x.Value.Tip == position);
+			if(b.Key==null)
+			{
+				if (!s.Commits.ContainsKey(position))
+					throw new ArgumentOutOfRangeException($"No commit with id '{position}'");
+				Branch = null;
+				Id = position;
+
+				Console.WriteLine(
+					"You are in 'detached HEAD' state. You can look around, make experimental changes and commit them, and you can discard any commits you make in this state without impacting any branches by performing another checkout.");
+			}
+			else
+			{
+				Update(b.Key, s);
+			}
 		}
 
 		public bool IsDetachedHead() => Id != null;
@@ -250,28 +266,7 @@ namespace KbgSoft.KBGit
 			Hd = new Storage();
 			var branch = FullName("master");
 			CheckOut_b(branch, null);
-			Hd.Head.Update(branch);
 			SaveState();
-			ResetCodeFolder();
-		}
-
-		/// <summary> update head to a branch</summary>
-		public void Checkout(string branch)
-		{
-			var name = FullName(branch);
-			if (!Hd.Branches.ContainsKey(name))
-				throw new ArgumentOutOfRangeException($"No branch named \'{name}\'");
-
-			Hd.Head.Update(Hd.Branches[name].Tip);
-		}
-
-		/// <summary> update head to an ID</summary>
-		public void Checkout(Id position)
-		{
-			if (!Hd.Commits.ContainsKey(position))
-				throw new ArgumentOutOfRangeException($"No commit id {position}");
-
-			Hd.Head.Update(position);
 		}
 
 		/// <summary> Create a branch: e.g "git checkout -b foo" </summary>
@@ -284,9 +279,9 @@ namespace KbgSoft.KBGit
 		public void CheckOut_b(string name, Id position)
 		{
 			name = FullName(name);
-
 			Hd.Branches.Add(name, new Branch(position, position));
-			Hd.Head.Update(name);
+			ResetCodeFolder(position);
+			Hd.Head.Update(name, Hd);
 		}
 
 		/// <summary>
@@ -330,7 +325,7 @@ namespace KbgSoft.KBGit
 			Hd.Commits.Add(commitId, commit);
 
 			if (Hd.Head.IsDetachedHead())
-				Hd.Head.Update(commitId);
+				Hd.Head.Update(commitId, Hd);
 			else
 				Hd.Branches[Hd.Head.Branch].Tip = commitId;
 
@@ -374,7 +369,7 @@ namespace KbgSoft.KBGit
 			Hd.Commits.Add(commitId, commit);
 
 			if (Hd.Head.IsDetachedHead())
-				Hd.Head.Update(commitId);
+				Hd.Head.Update(commitId, Hd);
 			else
 				Hd.Branches[Hd.Head.Branch].Tip = commitId;
 
@@ -383,11 +378,20 @@ namespace KbgSoft.KBGit
 			return commitId;
 		}
 
-		void ResetCodeFolder()
+		void ResetCodeFolder(Id position)
 		{
 			if (Directory.Exists(CodeFolder))
 				Directory.Delete(CodeFolder, true);
 			Directory.CreateDirectory(CodeFolder);
+
+			if (position != null)
+			{
+				var commit = Hd.Commits[position];
+				foreach (BlobTreeLine line in commit.Tree.Lines)
+				{
+					File.WriteAllText(Path.Combine(CodeFolder, line.Path), line.Blob.Content);
+				}
+			}
 		}
 
 		/// <summary>
@@ -399,43 +403,20 @@ namespace KbgSoft.KBGit
 			Hd.Branches.Remove(name);
 		}
 
-		/// <summary>
-		/// Change folder content to branch and move HEAD 
-		/// </summary>
-		public void CheckOut(string branch)
+		public void Checkout(string branch)
 		{
-			CheckOut(Hd.Branches[FullName(branch)].Tip);
+			if(!Hd.Branches.ContainsKey(branch))
+				branch=FullName(branch);
+			Checkout(Hd.Branches[branch].Tip);
 		}
 
 		/// <summary>
-		/// Change folder content to commit id and move HEAD 
+		/// Change folder content to commit position and move HEAD 
 		/// </summary>
-		public void CheckOut(Id id)
+		public void Checkout(Id id)
 		{
-			void UpdateHead()
-			{
-				var branch = Hd.Branches.FirstOrDefault(x => x.Value.Tip == id);
-				if (branch.Key == null)
-					Hd.Head.Update(id);
-				else
-					Hd.Head.Update(branch.Key);
-			}
-
-			ResetCodeFolder();
-
-			UpdateHead();
-
-			var commit = Hd.Commits[id];
-			foreach (BlobTreeLine line in commit.Tree.Lines)
-			{
-				File.WriteAllText(Path.Combine(CodeFolder, line.Path), line.Blob.Content);
-			}
-
-			if (Hd.Head.IsDetachedHead())
-			{
-				Console.WriteLine(
-					"You are in 'detached HEAD' state. You can look around, make experimental changes and commit them, and you can discard any commits you make in this state without impacting any branches by performing another checkout.");
-			}
+			ResetCodeFolder(id);
+			Hd.Head.Update(id, Hd);
 		}
 
 		public void Log()

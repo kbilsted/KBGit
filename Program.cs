@@ -45,7 +45,7 @@ namespace KbgSoft.KBGit {
 			WaitKey();
 
 			Console.WriteLine("reset to main");
-			git.CheckOut("master");
+			git.Checkout("master");
 			WaitKey();
 		}
 	}

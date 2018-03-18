@@ -14,7 +14,7 @@ namespace kbgit.tests
 	    {
 		    var repoBuilder = new RepoBuilder("reponame", @"c:\temp\");
 		    var git = repoBuilder.Build2Files3Commits();
-			git.CheckOut(git.HeadRef(1));
+			git.Checkout(git.HeadRef(1));
 		    repoBuilder.AddFile("newfile", "dslfk");
 
 		    var id = git.Commit("headless commit", "a", new DateTime(2010, 11, 12), git.ScanFileSystem());
@@ -181,9 +181,9 @@ visitblob FeatureVolvo\car.txt
 				.AddFile(filename, "version 2 a")
 				.Commit();
 
-			repoBuilder.Git.CheckOut(id1);
+			repoBuilder.Git.Checkout(id1);
 			Assert.Equal("version 1 a", repoBuilder.ReadFile(filename));
-			repoBuilder.Git.CheckOut(id2);
+			repoBuilder.Git.Checkout(id2);
 			Assert.Equal("version 2 a", repoBuilder.ReadFile(filename));
 		}
 
@@ -202,10 +202,10 @@ visitblob FeatureVolvo\car.txt
 
 			Assert.Equal(new[] {"a.txt", "b.txt"}, FilesInRepo());
 
-			repoBuilder.Git.CheckOut("master");
+			repoBuilder.Git.Checkout("master");
 			Assert.Equal(new[] { "a.txt" }, FilesInRepo());
 
-			repoBuilder.Git.CheckOut("featurebranch");
+			repoBuilder.Git.Checkout("featurebranch");
 			Assert.Equal(new[] { "a.txt", "b.txt" }, FilesInRepo());
 		}
 
@@ -221,7 +221,7 @@ visitblob FeatureVolvo\car.txt
 				.AddFile("b.txt")
 				.Commit();
 
-			repoBuilder.Git.CheckOut(detachedId);
+			repoBuilder.Git.Checkout(detachedId);
 
 			Assert.Equal($@"* (HEAD detached at {detachedId.ToString().Substring(0, 7)})
   a/master", repoBuilder.Git.Branch());
