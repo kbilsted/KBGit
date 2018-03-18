@@ -146,17 +146,18 @@ visitblob FeatureVolvo\car.txt
 			var git = new RepoBuilder("reponame", @"c:\temp\").BuildEmptyRepo();
 
 			Assert.Null(git.Hd.Head.GetId(git.Hd));
+			Assert.Equal("reponame/master", git.Hd.Head.Branch);
 		}
 
 		[Fact]
-		public void Given_repo_When_getting_headinfo_Then_return_info()
+		public void Given_repo_When_committing_getting_headinfo_Then_return_info()
 		{
 			var repoBuilder = new RepoBuilder("reponame", @"c:\temp\");
-			var git = repoBuilder.BuildEmptyRepo();
-			repoBuilder.AddFile("a.txt", "aaa");
+			var firstId = repoBuilder.EmptyRepo().AddFile("a.txt").Commit();
 
-			var firstId = git.Commit("b", "c", DateTime.Now);
-			Assert.Equal(firstId, git.Hd.Head.GetId(git.Hd));
+			Assert.Equal(firstId, repoBuilder.Git.Hd.Head.GetId(repoBuilder.Git.Hd));
+			Assert.Null(repoBuilder.Git.Hd.Head.Id);
+			Assert.Equal("reponame/master", repoBuilder.Git.Hd.Head.Branch);
 		}
 
 		[Fact]
@@ -166,6 +167,27 @@ visitblob FeatureVolvo\car.txt
 			var parentOfHead = git.Hd.Commits[git.Hd.Head.GetId(git.Hd)].Parents.First();
 
 			Assert.Equal(parentOfHead, git.HeadRef(1));
+		}
+
+		[Fact]
+		public void When_detached_head_and_commit_move_Then_update_head()
+		{
+			var repoBuilder = new RepoBuilder("a", @"c:\temp\");
+			var detachedId = repoBuilder
+				.EmptyRepo()
+				.AddFile("a.txt")
+				.Commit();
+			repoBuilder
+				.AddFile("b.txt")
+				.Commit();
+			repoBuilder.Git.Checkout(detachedId);
+			var detachedId2=repoBuilder
+				.AddFile("a.txt")
+				.Commit();
+
+			Assert.Null(repoBuilder.Git.Hd.Head.Branch);
+			Assert.Equal(detachedId2, repoBuilder.Git.Hd.Head.Id);
+			Assert.Equal(detachedId2, repoBuilder.Git.Hd.Head.GetId(repoBuilder.Git.Hd));
 		}
 	}
 
