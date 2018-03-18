@@ -25,20 +25,25 @@ namespace kbgit.tests
 	    public void When_Commit_a_similar_situation_to_a_previous_commit_Then_should_not_incread_blobs_nor_tree_blobs()
 	    {
 		    var repoBuilder = new RepoBuilder("reponame", @"c:\temp\");
-		    var git = repoBuilder.BuildEmptyRepo();
-		    repoBuilder.AddFile("a.txt", "aaaaa");
-		    git.Commit("Add a", "kasper", new DateTime(2017, 1, 1, 1, 1, 1), git.ScanFileSystem());
-			repoBuilder.AddFile("b.txt", "bbbb");
-		    git.Commit("Add b", "kasper", new DateTime(2017, 2, 2, 2, 2, 2), git.ScanFileSystem());
-			repoBuilder.DeleteFile("b.txt");
-		    var blobCount = git.Hd.Blobs.Count;
-		    var treeBlobCount = git.Hd.Trees.Count;
+		    repoBuilder
+			    .EmptyRepo()
+			    .AddFile("a.txt")
+			    .Commit();
 
-			git.Commit("deleted b", "arthur", new DateTime(2010, 11, 12), git.ScanFileSystem());
+		    repoBuilder
+			    .AddFile("b.txt")
+			    .Commit();
 
-			Assert.Equal(blobCount, git.Hd.Blobs.Count);
-			Assert.Equal(treeBlobCount, git.Hd.Trees.Count);
-	    }
+		    Assert.Equal(2, repoBuilder.Git.Hd.Blobs.Count);
+		    Assert.Equal(2, repoBuilder.Git.Hd.Commits.Count);
+
+			repoBuilder
+			    .DeleteFile("b.txt")
+			    .Commit("deleted b");
+
+		    Assert.Equal(2, repoBuilder.Git.Hd.Blobs.Count);
+		    Assert.Equal(3, repoBuilder.Git.Hd.Commits.Count);
+		}
 
 		public string FileSystemScanFolder(KBGit git)
 		{

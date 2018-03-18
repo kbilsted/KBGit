@@ -67,9 +67,11 @@ namespace kbgit.tests
 			return this;
 		}
 
-		public Id Commit()
+		public Id Commit() => Commit("Some message");
+
+		public Id Commit(string message)
 		{
-			return Git.Commit("some message", "author", DateTime.Now, Git.ScanFileSystem());
+			return Git.Commit(message, "author", DateTime.Now, Git.ScanFileSystem());
 		}
 
 		public RepoBuilder NewBranch(string branch)
