@@ -10,11 +10,12 @@ namespace kbgit.tests
 		readonly string repositoryName;
 		public KBGit Git;
 
-		public RepoBuilder() : this("reponame", @"c:\temp\") { }
-
-		public RepoBuilder(string repositoryName, string basePath)
+		public RepoBuilder() : this("reponame", @"c:\temp\", Guid.NewGuid()) { }
+		public RepoBuilder(Guid unittestguid) : this("reponame", @"c:\temp\", unittestguid) { }
+		public RepoBuilder(string repositoryName, string basePath) : this(repositoryName, basePath, Guid.NewGuid()) { }
+		public RepoBuilder(string repositoryName, string basePath, Guid unittestguid)
 		{
-			this.basePath = basePath;
+			this.basePath = Path.Combine(basePath, $"kbgit\\{unittestguid}\\");
 			this.repositoryName = repositoryName;
 		}
 

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace KbgSoft.KBGit
 {
@@ -244,7 +245,7 @@ namespace KbgSoft.KBGit
 		{
 			this.repositoryName = repositoryName;
 			LoadState();
-			CodeFolder = Path.Combine(startpath, $"kbgit\\{Guid.NewGuid()}\\");
+			CodeFolder = startpath;
 			// Path.Combine(CodeFolder, KBGitFolderName, Datafile);
 		}
 
@@ -419,11 +420,12 @@ namespace KbgSoft.KBGit
 			Hd.Head.Update(id, Hd);
 		}
 
-		public void Log()
+		public string Log()
 		{
+			var sb = new StringBuilder();
 			foreach (var branch in Hd.Branches)
 			{
-				Console.WriteLine($"Log for {branch.Key}");
+				sb.AppendLine($"Log for {branch.Key}");
 				var nodes = GetReachableNodes(branch.Value.Tip);
 				foreach (var comit in nodes.OrderByDescending(x => x.Value.Time))
 				{
@@ -432,9 +434,11 @@ namespace KbgSoft.KBGit
 					var msg = commitnode.Message.Substring(0, Math.Min(40, commitnode.Message.Length));
 					var author = $"{commitnode.Author}";
 
-					Console.WriteLine($"* {key} - {msg} ({commitnode.Time:yyyy/MM/dd hh:mm:ss}) <{author}> ");
+					sb.AppendLine($"* {key} - {msg} ({commitnode.Time:yyyy/MM/dd hh\\:mm\\:ss}) <{author}> ");
 				}
 			}
+
+			return sb.ToString();
 		}
 
 		/// <summary>

@@ -192,6 +192,64 @@ visitblob FeatureVolvo\car.txt
 	}
 
 
+	public class LogTests
+	{
+		[Fact]
+		public void When_one_commit_Then_log_one_line()
+		{
+			var repoBuilder = new RepoBuilder(new Guid("6c7f821e-5cb2-45de-9365-3e35887c0ee6"))
+				.EmptyRepo()
+				.AddFile("a.txt", "some content");
+
+			repoBuilder.Git.Commit("Add a.txt", "kasper graversen", new DateTime(2018, 3, 1, 12, 22, 33));
+
+			Assert.Equal(@"Log for reponame/master
+* 3b4f5a3 - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
+", repoBuilder.Git.Log());
+		}
+
+		[Fact]
+		public void When_two_commits_Then_log_twoline()
+		{
+			var repoBuilder = new RepoBuilder(new Guid("b3b12f1c-f455-4987-b2d7-5db08d9e1ee4"))
+				.EmptyRepo()
+				.AddFile("a.txt", "some content");
+			repoBuilder.Git.Commit("Add a.txt", "kasper graversen", new DateTime(2018, 3, 1, 12, 22, 33));
+			repoBuilder.AddFile("a.txt", "changed a...");
+			repoBuilder.Git.Commit("Changed a.txt", "kasper graversen", new DateTime(2018, 3, 2, 13, 24, 34));
+
+			Assert.Equal(@"Log for reponame/master
+* 5d90a78 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
+* 3b4f5a3 - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
+", repoBuilder.Git.Log());
+		}
+
+		[Fact]
+		public void When_two_commits_on_master_and_one_on_feature_Then_log_both_branches()
+		{
+			var repoBuilder = new RepoBuilder(new Guid("186d2ac8-1e9c-4e86-b1ac-b18208adead4"))
+				.EmptyRepo()
+				.AddFile("a.txt", "some content");
+			repoBuilder.Git.Commit("Add a.txt", "kasper graversen", new DateTime(2018, 3, 1, 12, 22, 33));
+			repoBuilder.AddFile("a.txt", "changed a...");
+			repoBuilder.Git.Commit("Changed a.txt", "kasper graversen", new DateTime(2018, 3, 2, 13, 24, 34));
+			repoBuilder
+				.NewBranch("feature/speed")
+				.AddFile("a.txt", "speedup!")
+				.Git.Commit("Speedup a.txt", "kasper graversen", new DateTime(2018, 4, 3, 15, 26, 37));
+
+			Assert.Equal(@"Log for reponame/master
+* 5d90a78 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
+* 3b4f5a3 - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
+Log for feature/speed
+* 2558426 - Speedup a.txt (2018/04/03 03:26:37) <kasper graversen> 
+* 5d90a78 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
+* 3b4f5a3 - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
+", repoBuilder.Git.Log());
+		}
+
+	}
+
 	public class GitCommitTests
 	{
 		[Fact]

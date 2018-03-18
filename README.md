@@ -1,7 +1,7 @@
 # KBGit - Git implemented from scratch in 500 lines of code (or less ...)
 
 Project statistics:  <!--start-->
-[![Stats](https://img.shields.io/badge/Code_lines-272-ff69b4.svg)]()
+[![Stats](https://img.shields.io/badge/Code_lines-275-ff69b4.svg)]()
 [![Stats](https://img.shields.io/badge/Doc_lines-18-ff69b4.svg)]()
 <!--end-->
 
@@ -30,7 +30,7 @@ which count only semantic lines (i.e. exclude empty lines, lines only containing
    * detached heads
    * move branch pointer
  * checkout old commits
- * logging (90%)
+ * logging (90% done missing start-end of branching)
  * update 
 
 ## planned work 
@@ -38,10 +38,11 @@ which count only semantic lines (i.e. exclude empty lines, lines only containing
  * push
  * pull
  * sub-folder support
- * graphical logging
+ * logging (graphical)
  * git INDEX rather than scanning files
  * blob compression
  * store git state on disk 
+ * command line parser
 
 
 I will blog about the implementation on [http://firstclassthoughts.co.uk/](http://firstclassthoughts.co.uk/)

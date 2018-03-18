@@ -19,20 +19,20 @@ namespace KbgSoft.KBGit {
 
 			File.WriteAllText(git.CodeFolder + "file.txt", "Hello world");
 			git.Commit("Adding note", "kasper", DateTime.Now, git.ScanFileSystem());
-			git.Log();
+			Console.WriteLine(git.Log());
 			WaitKey();
 
 			Console.WriteLine("---");
 			File.WriteAllText(git.CodeFolder + "file.txt", "Hello world\nAnd more stuff here");
 			File.WriteAllText(git.CodeFolder + "readme.md", "#title\n\nthis module is bla bla\nand then more bla bla");
 			git.Commit("Adding extra text and readme", "kasper", DateTime.Now, git.ScanFileSystem());
-			git.Log();
+			Console.WriteLine(git.Log());
 
 			Console.WriteLine("---");
 			File.WriteAllText(git.CodeFolder + "file.txt",
 				"# title\n\nthis module is bla bla\nand then more bla bla" + "\nso much\nmoooore\n123....wow\nlalala");
 			git.Commit("More text to file1", "kasper", DateTime.Now, git.ScanFileSystem());
-			git.Log();
+			Console.WriteLine(git.Log());
 			WaitKey();
 
 			Console.WriteLine("---");
@@ -41,7 +41,7 @@ namespace KbgSoft.KBGit {
 			File.WriteAllText(git.CodeFolder + "featurefile.cs",
 				"class Feature \n{ Some cool feature \n}" + "\nso much\nmoooore\n123....wow\nlalala");
 			git.Commit("Add feature 1", "kasper", DateTime.Now, git.ScanFileSystem());
-			git.Log();
+			Console.WriteLine(git.Log());
 			WaitKey();
 
 			Console.WriteLine("reset to main");
