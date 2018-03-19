@@ -460,18 +460,19 @@ namespace KbgSoft.KBGit
 		List<KeyValuePair<Id, CommitNode>> GetReachableNodes(Id id)
 		{
 			var result = new List<KeyValuePair<Id, CommitNode>>();
-			GetReachableNodes(id, result);
-			return result;
-		}
+			GetReachableNodes(id);
 
-		void GetReachableNodes(Id id, List<KeyValuePair<Id, CommitNode>> result)
-		{
-			var current = Hd.Commits[id];
-			result.Add(new KeyValuePair<Id, CommitNode>(id, current));
-			foreach (var parent in current.Parents)
+			void GetReachableNodes(Id currentId)
 			{
-				GetReachableNodes(parent, result);
+				var commit = Hd.Commits[currentId];
+				result.Add(new KeyValuePair<Id, CommitNode>(currentId, commit));
+				foreach (var parent in commit.Parents)
+				{
+					GetReachableNodes(parent);
+				}
 			}
+
+			return result;
 		}
 
 		public TreeTreeLine FileSystemScanFolder(string path) => MakeTreeTreeLine(path);
