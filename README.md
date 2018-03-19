@@ -1,8 +1,8 @@
 # KBGit - Git implemented from scratch in 500 lines of code (or less ...)
 
 Project statistics:  <!--start-->
-[![Stats](https://img.shields.io/badge/Code_lines-275-ff69b4.svg)]()
-[![Stats](https://img.shields.io/badge/Doc_lines-18-ff69b4.svg)]()
+[![Stats](https://img.shields.io/badge/Code_lines-273-ff69b4.svg)]()
+[![Stats](https://img.shields.io/badge/Doc_lines-19-ff69b4.svg)]()
 <!--end-->
 
 I've been an avid user of Git and Hg for over 10 years - but only recently did I dig into their implementation details. And 

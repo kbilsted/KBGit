@@ -18,7 +18,7 @@ namespace kbgit.tests
 
 		    var id = git.Commit("headless commit", "a", new DateTime(2010, 11, 12), git.ScanFileSystem());
 
-			Assert.Equal("d9f76d36a423a4689a4f24d6f9d82e7804575a411d9897de36a4044e73c08b50", id.ToString());
+			Assert.Equal("febbb256ef16977a9f05e5afe137043c627f988283920470a95a1a4de326bf51", id.ToString());
 	    }
 
 	    [Fact]
@@ -191,6 +191,26 @@ visitblob FeatureVolvo\car.txt
 		}
 	}
 
+	public class IdTests
+	{
+		[Fact]
+		public void When_equal_Then_equals_returns_true()
+		{
+			var id1 = new Id("162b60c2809016e893b96d2d941c0c68ba6d2ac25cbc12b21d5678656fca8c8f");
+			var id2 = new Id("162b60c2809016e893b96d2d941c0c68ba6d2ac25cbc12b21d5678656fca8c8f");
+
+			Assert.True(id1.Equals(id2));
+		}
+
+		[Fact]
+		public void When_not_equal_Then_equals_returns_false()
+		{
+			var id1 = new Id("162b60c2809016e893b96d2d941c0c68ba6d2ac25cbc12b21d5678656fca8c8f");
+			var id2 = new Id("612b60c2809016e893b96d2d941c0c68ba6d2ac25cbc12b21d5678656fca8c8f");
+
+			Assert.False(id1.Equals(id2));
+		}
+	}
 
 	public class LogTests
 	{
@@ -204,7 +224,7 @@ visitblob FeatureVolvo\car.txt
 			repoBuilder.Git.Commit("Add a.txt", "kasper graversen", new DateTime(2018, 3, 1, 12, 22, 33));
 
 			Assert.Equal(@"Log for reponame/master
-* 3b4f5a3 - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
+* 424f7a0 - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
 ", repoBuilder.Git.Log());
 		}
 
@@ -219,8 +239,8 @@ visitblob FeatureVolvo\car.txt
 			repoBuilder.Git.Commit("Changed a.txt", "kasper graversen", new DateTime(2018, 3, 2, 13, 24, 34));
 
 			Assert.Equal(@"Log for reponame/master
-* 5d90a78 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
-* 3b4f5a3 - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
+* e323835 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
+* 424f7a0 - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
 ", repoBuilder.Git.Log());
 		}
 
@@ -239,12 +259,12 @@ visitblob FeatureVolvo\car.txt
 				.Git.Commit("Speedup a.txt", "kasper graversen", new DateTime(2018, 4, 3, 15, 26, 37));
 
 			Assert.Equal(@"Log for reponame/master
-* 5d90a78 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
-* 3b4f5a3 - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
+* e323835 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
+* 424f7a0 - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
 Log for feature/speed
-* 2558426 - Speedup a.txt (2018/04/03 03:26:37) <kasper graversen> 
-* 5d90a78 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
-* 3b4f5a3 - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
+* 6a128eb - Speedup a.txt (2018/04/03 03:26:37) <kasper graversen> 
+* e323835 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
+* 424f7a0 - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
 ", repoBuilder.Git.Log());
 		}
 

@@ -11,26 +11,15 @@ namespace KbgSoft.KBGit
 	public static class Sha
 	{
 		static readonly SHA256 sha = SHA256.Create();
-		//public static string GetSha(string s)
-		//{
-		//    return GetSha(sha.ComputeHash(Encoding.UTF8.GetBytes(s)));
-		//}
 
-		//public static byte[] Compute(string s)
-		//{
-		//    return sha.ComputeHash(Encoding.UTF8.GetBytes(s));
-		//}
-
-		public static byte[] Compute(object o)
+		public static string Compute(object o)
 		{
 			var stream = new MemoryStream();
 			new BinaryFormatter().Serialize(stream, o);
 			stream.Seek(0, SeekOrigin.Begin);
 
-			return sha.ComputeHash(stream);
+			return string.Join("", sha.ComputeHash(stream).Select(x => String.Format("{0:x2}", x)));
 		}
-
-		public static string GetSha(byte[] b) => string.Join("", sha.ComputeHash(b).Select(x => String.Format("{0:x2}", x)));
 	}
 
 	public class Fileinfo
@@ -48,11 +37,13 @@ namespace KbgSoft.KBGit
 	[Serializable]
 	public class Id
 	{
-		public byte[] Bytes { get; private set; } // TODO change to string of sha
+		public string ShaId { get; private set; }
 
-		public Id(byte[] b)
+		public Id(string sha)
 		{
-			Bytes = b;
+			if(sha == null || sha.Length != 64)
+				throw new ArgumentException("Not a valid SHA");
+			ShaId = sha;
 		}
 
 		/// <summary>
@@ -60,21 +51,15 @@ namespace KbgSoft.KBGit
 		/// </summary>
 		public static Id HashObject(object o) => new Id(Sha.Compute(o));
 
-		public override string ToString() => Sha.GetSha(Bytes);
+		public override string ToString() => ShaId;
 
-		public override bool Equals(object obj)
-		{
-			if (object.ReferenceEquals(obj, null))
-				return false;
-			var otherbytes = ((Id) obj).Bytes;
-			return Bytes.Length == otherbytes.Length && Bytes.Select((x, i) => new {x, i}).All(o => o.x == otherbytes[o.i]);
-		}
+		public override bool Equals(object obj) => ShaId.Equals((obj as Id)?.ShaId);
 
 		public static bool operator ==(Id a, Id b) => ReferenceEquals(a, b) || (!ReferenceEquals(a, null) && a.Equals(b));
 
 		public static bool operator !=(Id a, Id b) => !(a==b);
 
-		public override int GetHashCode() => Bytes.Aggregate(397 * Bytes.Length, (hash, aByte) => hash ^ (aByte * 397 * hash));
+		public override int GetHashCode() => ShaId.GetHashCode();
 	}
 
 	public class Storage
@@ -299,6 +284,11 @@ namespace KbgSoft.KBGit
 			return result;
 		}
 
+		/// <summary>
+		/// Equivalent to "git hash-object -w <file>"
+		/// </summary>
+		public Id HashObject(string content) => Id.HashObject(content);
+
 		public Id Commit(string message, string author, DateTime now)
 		{
 			var composite = FileSystemScanFolder(CodeFolder);
@@ -406,8 +396,8 @@ namespace KbgSoft.KBGit
 
 		public void Checkout(string branch)
 		{
-			if(!Hd.Branches.ContainsKey(branch))
-				branch=FullName(branch);
+			if (!Hd.Branches.ContainsKey(branch))
+				branch = FullName(branch);
 			Checkout(Hd.Branches[branch].Tip);
 		}
 
