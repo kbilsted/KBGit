@@ -8,10 +8,31 @@ namespace kbgit.tests
 {
     public class KbGitTests
     {
+	    private RepoBuilder repoBuilder = new RepoBuilder();
+
+		[Fact]
+	    public void When_committing_Then_move_branch_pointer()
+	    {
+		    var id1 = repoBuilder.EmptyRepo().AddFile("a.txt").Commit();
+
+		    var branchTip = repoBuilder.Git.Hd.Branches.Single().Value.Tip;
+		    Assert.Equal(id1, branchTip);
+	    }
+
 	    [Fact]
+	    public void When_committing_Then_set_parent_to_previous_head()
+	    {
+			var parentId = repoBuilder.EmptyRepo().AddFile("a.txt").Commit();
+
+		    var commitId = repoBuilder.AddFile("a.txt").Commit();
+
+		    Assert.Equal(parentId, repoBuilder.Git.Hd.Commits[commitId].Parents.First());
+	    }
+
+		[Fact]
 	    public void CommitWhenHeadless()
 	    {
-		    var repoBuilder = new RepoBuilder("reponame", @"c:\temp\");
+		    repoBuilder = new RepoBuilder("reponame", @"c:\temp\");
 		    var git = repoBuilder.Build2Files3Commits();
 			git.Checkout(git.HeadRef(1));
 		    repoBuilder.AddFile("newfile", "dslfk");
@@ -24,7 +45,6 @@ namespace kbgit.tests
 	    [Fact]
 	    public void When_Commit_a_similar_situation_to_a_previous_commit_Then_should_not_incread_blobs_nor_tree_blobs()
 	    {
-		    var repoBuilder = new RepoBuilder("reponame", @"c:\temp\");
 		    repoBuilder
 			    .EmptyRepo()
 			    .AddFile("a.txt")
@@ -53,7 +73,7 @@ namespace kbgit.tests
 		[Fact]
 	    public void Given_two_toplevel_files_Then_()
 	    {
-		    var repoBuilder = new RepoBuilder("", @"c:\temp\");
+		    repoBuilder = new RepoBuilder("", @"c:\temp\");
 		    var git = repoBuilder.BuildEmptyRepo();
 		    repoBuilder.AddFile("car.txt", "car");
 		    repoBuilder.AddFile("door.txt", "door");
@@ -68,7 +88,7 @@ blob door.txt",  files);
 		[Fact]
 		public void Given_two_files_in_subfolder_Then_()
 	    {
-		    var repoBuilder = new RepoBuilder("", @"c:\temp\");
+		    repoBuilder = new RepoBuilder("", @"c:\temp\");
 		    var git = repoBuilder.BuildEmptyRepo();
 		    repoBuilder.AddFile(@"FeatureVolvo\car.txt", "car");
 		    repoBuilder.AddFile(@"FeatureVolvo\door.txt", "door");
@@ -140,6 +160,8 @@ visitblob FeatureVolvo\car.txt
 
 	public class KBGitHeadTests
 	{
+		RepoBuilder repoBuilder = new RepoBuilder();
+
 		[Fact]
 		public void Given_fresh_repo_When_getting_headinfo_Then_fail()
 		{
@@ -152,7 +174,7 @@ visitblob FeatureVolvo\car.txt
 		[Fact]
 		public void Given_repo_When_committing_getting_headinfo_Then_return_info()
 		{
-			var repoBuilder = new RepoBuilder("reponame", @"c:\temp\");
+			repoBuilder = new RepoBuilder("reponame", @"c:\temp\");
 			var firstId = repoBuilder.EmptyRepo().AddFile("a.txt").Commit();
 
 			Assert.Equal(firstId, repoBuilder.Git.Hd.Head.GetId(repoBuilder.Git.Hd));
@@ -163,7 +185,7 @@ visitblob FeatureVolvo\car.txt
 		[Fact]
 		public void Given_repo_When_getting_HeadRef_1_Then_return_parent_of_HEAD()
 		{
-			var git = new RepoBuilder().Build2Files3Commits();
+			var git = repoBuilder.Build2Files3Commits();
 			var parentOfHead = git.Hd.Commits[git.Hd.Head.GetId(git.Hd)].Parents.First();
 
 			Assert.Equal(parentOfHead, git.HeadRef(1));
@@ -172,7 +194,6 @@ visitblob FeatureVolvo\car.txt
 		[Fact]
 		public void When_detached_head_and_commit_move_Then_update_head()
 		{
-			var repoBuilder = new RepoBuilder();
 			var detachedId = repoBuilder
 				.EmptyRepo()
 				.AddFile("a.txt")
@@ -272,10 +293,11 @@ Log for feature/speed
 
 	public class GitCommitTests
 	{
+		RepoBuilder repoBuilder = new RepoBuilder();
+
 		[Fact]
 		public void When_Commit_Then_content_is_stored()
 		{
-			var repoBuilder = new RepoBuilder();
 			var filename = "a.txt";
 			var id1 = repoBuilder
 				.EmptyRepo()
@@ -295,7 +317,6 @@ Log for feature/speed
 		[Fact]
 		public void When_branching_and_commit_and_update_back_Then_reset_content_to_old_branch()
 		{
-			var repoBuilder = new RepoBuilder();
 			repoBuilder
 				.EmptyRepo()
 				.AddFile("a.txt", "version 1 a")
@@ -317,7 +338,7 @@ Log for feature/speed
 		[Fact]
 		public void When_detached_head_Then_git_branches_shows_detached_as_branch()
 		{
-			var repoBuilder = new RepoBuilder("a", @"c:\temp\");
+			repoBuilder = new RepoBuilder("a", @"c:\temp\");
 			var detachedId = repoBuilder
 				.EmptyRepo()
 				.AddFile("a.txt")
@@ -335,7 +356,7 @@ Log for feature/speed
 		[Fact]
 		public void When_branching_Then_Branchinfo_show_new_branchname()
 		{
-			var repoBuilder = new RepoBuilder("a", @"c:\temp\");
+			repoBuilder = new RepoBuilder("a", @"c:\temp\");
 			repoBuilder
 				.EmptyRepo()
 				.AddFile("a.txt")
