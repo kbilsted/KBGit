@@ -2,9 +2,11 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 
 namespace KbgSoft.KBGit
 {
@@ -206,6 +208,74 @@ namespace KbgSoft.KBGit
 		public BlobNode(string content)
 		{
 			Content = content;
+		}
+	}
+
+
+	public class GitServerThread 
+	{
+		private readonly KBGit git;
+
+		public GitServerThread(KBGit git)
+		{
+			this.git = git;
+		}
+
+		public void Serve(int port)
+		{
+			HttpListener listener = new HttpListener();
+			listener.Prefixes.Add($"http://localhost:{port}/");
+			listener.Start();
+			while (true)
+			{
+				var context = listener.GetContext();
+				try
+				{
+					if (context.Request.HttpMethod == "GET")
+					{
+						Pull(context);
+					}
+					if(context.Request.HttpMethod == "POST")
+					{
+						Push(context);
+					}
+				}
+				catch (Exception e)
+				{
+					Console.WriteLine(e);
+					context.Response.StatusCode = 500;
+					context.Response.Close();
+				}
+			}
+		}
+
+		private void Push(HttpListenerContext context)
+		{
+			Console.WriteLine(context.Request.HttpMethod);
+		}
+
+		private void Pull(HttpListenerContext context)
+		{
+			var branch = context.Request.QueryString.Get("branch");
+
+			if (!git.Hd.Branches.ContainsKey(branch))
+			{
+				context.Response.StatusCode = 404;
+				context.Response.Close();
+				return;
+			}
+
+			var nodes = git.GetReachableNodes(git.Hd.Branches[branch].Tip).ToArray();
+			context.Response.Close(ToByteArray(nodes), true);
+		}
+
+		private static byte[] ToByteArray(KeyValuePair<Id, CommitNode>[] nodes)
+		{
+			var stream = new MemoryStream();
+			new BinaryFormatter().Serialize(stream, nodes);
+			stream.Seek(0, SeekOrigin.Begin);
+
+			return stream.GetBuffer();
 		}
 	}
 
@@ -457,7 +527,7 @@ namespace KbgSoft.KBGit
 				.ToArray();
 		}
 
-		List<KeyValuePair<Id, CommitNode>> GetReachableNodes(Id id)
+		public List<KeyValuePair<Id, CommitNode>> GetReachableNodes(Id id)
 		{
 			var result = new List<KeyValuePair<Id, CommitNode>>();
 			GetReachableNodes(id);

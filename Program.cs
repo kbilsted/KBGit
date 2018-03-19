@@ -20,6 +20,9 @@ namespace KbgSoft.KBGit {
 			File.WriteAllText(git.CodeFolder + "file.txt", "Hello world");
 			git.Commit("Adding note", "kasper", DateTime.Now, git.ScanFileSystem());
 			Console.WriteLine(git.Log());
+
+			new GitServerThread(git).Serve(8080);
+
 			WaitKey();
 
 			Console.WriteLine("---");
