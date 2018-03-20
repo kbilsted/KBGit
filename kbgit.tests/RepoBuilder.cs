@@ -82,5 +82,11 @@ namespace kbgit.tests
 			Git.CheckOut_b(branch);
 			return this;
 		}
+
+		public RepoBuilder AddLocalHostRemote()
+		{
+			Git.Hd.Remotes.Add(new Remote() {Name = "origin", Url = new Uri("http://localhost:8080")});
+			return this;
+		}
 	}
 }

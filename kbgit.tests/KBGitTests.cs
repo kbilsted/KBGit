@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using KbgSoft.KBGit;
+using Microsoft.VisualStudio.TestPlatform.PlatformAbstractions.Interfaces;
 using Xunit;
 
 namespace kbgit.tests
@@ -368,4 +371,24 @@ Log for feature/speed
   a/master", repoBuilder.Git.Branch());
 		}
 	}
+
+	public class NetworkingTests
+	{
+		[Fact]
+		public void When_pulling_Then_receive_all_nodes()
+		{
+			var serverGit = new RepoBuilder().Build2Files3Commits();
+			var gitServerThread = new GitServer(serverGit);
+			var t = new TaskFactory().StartNew(() => gitServerThread.Serve(8080));
+
+			while (!gitServerThread.Running.HasValue)
+				Thread.Sleep(50); 
+			var localGit = new RepoBuilder().EmptyRepo().AddLocalHostRemote().Git;
+			new GitNetworkClient().PullBranch(localGit.Hd.Remotes.First(),"reponame/master", localGit);
+
+			gitServerThread.Abort();
+			
+		}
+	}
+
 }

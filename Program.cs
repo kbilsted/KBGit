@@ -21,7 +21,7 @@ namespace KbgSoft.KBGit {
 			git.Commit("Adding note", "kasper", DateTime.Now, git.ScanFileSystem());
 			Console.WriteLine(git.Log());
 
-			new GitServerThread(git).Serve(8080);
+			new GitServer(git).Serve(8080);
 
 			WaitKey();
 

@@ -21,6 +21,23 @@ namespace KbgSoft.KBGit
 			stream.Seek(0, SeekOrigin.Begin);
 
 			return string.Join("", sha.ComputeHash(stream).Select(x => String.Format("{0:x2}", x)));
+		public static byte[] Serialize(object o)
+		{
+			using (var stream = new MemoryStream())
+			{
+				new BinaryFormatter().Serialize(stream, o);
+				stream.Seek(0, SeekOrigin.Begin);
+				return stream.GetBuffer();
+			}
+		}
+
+		public static T Deserialize<T>(byte[] param) where T : class
+		{
+			using (MemoryStream ms = new MemoryStream(param))
+			{
+				IFormatter br = new BinaryFormatter();
+				return (br.Deserialize(ms) as T);
+			}
 		}
 	}
 
@@ -72,8 +89,10 @@ namespace KbgSoft.KBGit
 
 		public Dictionary<string, Branch> Branches = new Dictionary<string, Branch>();
 		public Head Head = new Head();
+		public List<Remote> Remotes = new List<Remote>();
 	}
 
+	[Serializable]
 	public class Branch
 	{
 		public Id Created { get; }
@@ -84,6 +103,12 @@ namespace KbgSoft.KBGit
 			Created = created;
 			Tip = tip;
 		}
+	}
+
+	public class Remote
+	{
+		public string Name;
+		public Uri Url;
 	}
 
 	/// <summary>
@@ -211,33 +236,83 @@ namespace KbgSoft.KBGit
 		}
 	}
 
+	[Serializable]
+	public class GitPushBranchRequest
+	{
+		public KeyValuePair<Id, CommitNode>[] Commits { get; set; }
+		public string Branch { get; set; }
+		public Branch BranchInfo { get; set; }
+		public Id LatestRemoteBranchPosition { get; set; }
+	}
 
-	public class GitServerThread 
+	[Serializable]
+	public class GitPullResponse
+	{
+		public KeyValuePair<Id, CommitNode>[] Commits { get; set; }
+		public Branch BranchInfo { get; set; }
+	}
+
+	/// <summary>
+	/// Used for communicating with a git server
+	/// </summary>
+	public class GitNetworkClient
+	{
+		public void PushBranch(string url, string branch, Id fromPosition, KeyValuePair<Id, CommitNode>[] nodes)
+		{
+			HttpClient client = new HttpClient();
+			var request = new GitPushBranchRequest() {Branch = branch, LatestRemoteBranchPosition = fromPosition, Commits = nodes};
+			var result = client.PostAsync(new Uri(url), new ByteArrayContent(Sha.Serialize(request))).GetAwaiter().GetResult();
+			Console.WriteLine(result.StatusCode.ToString());
+		}
+
+		public GitPullResponse PullBranch(Remote remote, string branch, KBGit git)
+		{
+			HttpClient client = new HttpClient();
+			var bytes = client.GetByteArrayAsync(remote.Url + "?branch=" + branch).GetAwaiter().GetResult();
+			var commits = Sha.Deserialize<GitPullResponse>(bytes);
+			Console.WriteLine("*");
+			
+			return commits;
+		}
+	}
+
+	public class GitServer 
 	{
 		private readonly KBGit git;
+		private HttpListener listener;
+		public bool? Running { get; private set; }
 
-		public GitServerThread(KBGit git)
+		public GitServer(KBGit git)
 		{
 			this.git = git;
 		}
 
+		public void Abort()
+		{
+			Running = false;
+			listener?.Abort();
+		}
+
 		public void Serve(int port)
 		{
-			HttpListener listener = new HttpListener();
+			listener = new HttpListener();
 			listener.Prefixes.Add($"http://localhost:{port}/");
+			Console.WriteLine($"Serving on http://localhost:{port}/");
 			listener.Start();
-			while (true)
+
+			Running = true;
+			while (Running.Value)
 			{
 				var context = listener.GetContext();
 				try
 				{
 					if (context.Request.HttpMethod == "GET")
 					{
-						Pull(context);
+						ReceivePullBranch(context);
 					}
 					if(context.Request.HttpMethod == "POST")
 					{
-						Push(context);
+						ReceivePushBranch(context);
 					}
 				}
 				catch (Exception e)
@@ -249,12 +324,17 @@ namespace KbgSoft.KBGit
 			}
 		}
 
-		private void Push(HttpListenerContext context)
+		private void ReceivePushBranch(HttpListenerContext context)
 		{
-			Console.WriteLine(context.Request.HttpMethod);
+			string text;
+			using (var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding))
+			{
+				text = reader.ReadToEnd();
+			}
+			Console.WriteLine(context.Request.HttpMethod + "\n"+text);
 		}
 
-		private void Pull(HttpListenerContext context)
+		private void ReceivePullBranch(HttpListenerContext context)
 		{
 			var branch = context.Request.QueryString.Get("branch");
 
@@ -265,17 +345,11 @@ namespace KbgSoft.KBGit
 				return;
 			}
 
-			var nodes = git.GetReachableNodes(git.Hd.Branches[branch].Tip).ToArray();
-			context.Response.Close(ToByteArray(nodes), true);
-		}
-
-		private static byte[] ToByteArray(KeyValuePair<Id, CommitNode>[] nodes)
-		{
-			var stream = new MemoryStream();
-			new BinaryFormatter().Serialize(stream, nodes);
-			stream.Seek(0, SeekOrigin.Begin);
-
-			return stream.GetBuffer();
+			context.Response.Close(Sha.Serialize(new GitPullResponse()
+			{
+				BranchInfo = git.Hd.Branches[branch],
+				Commits = git.GetReachableNodes(git.Hd.Branches[branch].Tip).ToArray()
+			}), true);
 		}
 	}
 
@@ -455,6 +529,14 @@ namespace KbgSoft.KBGit
 			}
 		}
 
+		internal void AddOrSetBranch(string branch, Branch branchInfo)
+		{
+			if (Hd.Branches.ContainsKey(branch))
+				Hd.Branches[branch].Tip = branchInfo.Tip;
+			else
+				Hd.Branches.Add(branch, branchInfo);
+		}
+
 		/// <summary>
 		/// Delete a branch. eg. "git branch -D name"
 		/// </summary>
@@ -536,6 +618,7 @@ namespace KbgSoft.KBGit
 			{
 				var commit = Hd.Commits[currentId];
 				result.Add(new KeyValuePair<Id, CommitNode>(currentId, commit));
+
 				foreach (var parent in commit.Parents)
 				{
 					GetReachableNodes(parent);
