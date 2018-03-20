@@ -35,14 +35,14 @@ namespace kbgit.tests
 		[Fact]
 	    public void CommitWhenHeadless()
 	    {
-		    repoBuilder = new RepoBuilder("reponame", @"c:\temp\");
+		    repoBuilder = new RepoBuilder(@"c:\temp\");
 		    var git = repoBuilder.Build2Files3Commits();
 			git.Checkout(git.HeadRef(1));
 		    repoBuilder.AddFile("newfile", "dslfk");
 
 		    var id = git.Commit("headless commit", "a", new DateTime(2010, 11, 12), git.ScanFileSystem());
 
-			Assert.Equal("febbb256ef16977a9f05e5afe137043c627f988283920470a95a1a4de326bf51", id.ToString());
+			Assert.Equal("48a24325bf46e633d025dbb88167e0ba867213d9c61f7ab7cb24b2af15450c00", id.ToString());
 	    }
 
 	    [Fact]
@@ -76,7 +76,7 @@ namespace kbgit.tests
 		[Fact]
 	    public void Given_two_toplevel_files_Then_()
 	    {
-		    repoBuilder = new RepoBuilder("", @"c:\temp\");
+		    repoBuilder = new RepoBuilder(@"c:\temp\");
 		    var git = repoBuilder.BuildEmptyRepo();
 		    repoBuilder.AddFile("car.txt", "car");
 		    repoBuilder.AddFile("door.txt", "door");
@@ -91,7 +91,7 @@ blob door.txt",  files);
 		[Fact]
 		public void Given_two_files_in_subfolder_Then_()
 	    {
-		    repoBuilder = new RepoBuilder("", @"c:\temp\");
+		    repoBuilder = new RepoBuilder(@"c:\temp\");
 		    var git = repoBuilder.BuildEmptyRepo();
 		    repoBuilder.AddFile(@"FeatureVolvo\car.txt", "car");
 		    repoBuilder.AddFile(@"FeatureVolvo\door.txt", "door");
@@ -108,7 +108,7 @@ blob FeatureVolvo\door.txt", files);
 		[Fact]
 		public void Get_folders_and_files()
 	    {
-		    var repoBuilder = new RepoBuilder("", @"c:\temp\");
+		    var repoBuilder = new RepoBuilder(@"c:\temp\");
 		    var git = repoBuilder.BuildEmptyRepo();
 		    repoBuilder.AddFile(@"FeatureVolvo\car.txt", "car");
 		    repoBuilder.AddFile(@"FeatureGarden\tree.txt", "tree");
@@ -134,7 +134,7 @@ blob FeatureVolvo\car.txt"
 	    [Fact]
 	    public void Visit()
 	    {
-		    var repoBuilder = new RepoBuilder("", @"c:\temp\");
+		    var repoBuilder = new RepoBuilder(@"c:\temp\");
 		    var git = repoBuilder.BuildEmptyRepo();
 		    repoBuilder.AddFile(@"FeatureVolvo\car.txt", "car");
 		    repoBuilder.AddFile(@"FeatureGarden\tree.txt", "tree");
@@ -168,21 +168,21 @@ visitblob FeatureVolvo\car.txt
 		[Fact]
 		public void Given_fresh_repo_When_getting_headinfo_Then_fail()
 		{
-			var git = new RepoBuilder("reponame", @"c:\temp\").BuildEmptyRepo();
+			var git = new RepoBuilder(@"c:\temp\").BuildEmptyRepo();
 
 			Assert.Null(git.Hd.Head.GetId(git.Hd));
-			Assert.Equal("reponame/master", git.Hd.Head.Branch);
+			Assert.Equal("master", git.Hd.Head.Branch);
 		}
 
 		[Fact]
 		public void Given_repo_When_committing_getting_headinfo_Then_return_info()
 		{
-			repoBuilder = new RepoBuilder("reponame", @"c:\temp\");
+			repoBuilder = new RepoBuilder(@"c:\temp\");
 			var firstId = repoBuilder.EmptyRepo().AddFile("a.txt").Commit();
 
 			Assert.Equal(firstId, repoBuilder.Git.Hd.Head.GetId(repoBuilder.Git.Hd));
 			Assert.Null(repoBuilder.Git.Hd.Head.Id);
-			Assert.Equal("reponame/master", repoBuilder.Git.Hd.Head.Branch);
+			Assert.Equal("master", repoBuilder.Git.Hd.Head.Branch);
 		}
 
 		[Fact]
@@ -247,8 +247,8 @@ visitblob FeatureVolvo\car.txt
 
 			repoBuilder.Git.Commit("Add a.txt", "kasper graversen", new DateTime(2018, 3, 1, 12, 22, 33));
 
-			Assert.Equal(@"Log for reponame/master
-* 424f7a0 - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
+			Assert.Equal(@"Log for master
+* 06cd57d - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
 ", repoBuilder.Git.Log());
 		}
 
@@ -262,9 +262,9 @@ visitblob FeatureVolvo\car.txt
 			repoBuilder.AddFile("a.txt", "changed a...");
 			repoBuilder.Git.Commit("Changed a.txt", "kasper graversen", new DateTime(2018, 3, 2, 13, 24, 34));
 
-			Assert.Equal(@"Log for reponame/master
-* e323835 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
-* 424f7a0 - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
+			Assert.Equal(@"Log for master
+* dd30447 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
+* 06cd57d - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
 ", repoBuilder.Git.Log());
 		}
 
@@ -282,13 +282,13 @@ visitblob FeatureVolvo\car.txt
 				.AddFile("a.txt", "speedup!")
 				.Git.Commit("Speedup a.txt", "kasper graversen", new DateTime(2018, 4, 3, 15, 26, 37));
 
-			Assert.Equal(@"Log for reponame/master
-* e323835 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
-* 424f7a0 - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
+			Assert.Equal(@"Log for master
+* dd30447 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
+* 06cd57d - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
 Log for feature/speed
-* 6a128eb - Speedup a.txt (2018/04/03 03:26:37) <kasper graversen> 
-* e323835 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
-* 424f7a0 - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
+* fafcd20 - Speedup a.txt (2018/04/03 03:26:37) <kasper graversen> 
+* dd30447 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
+* 06cd57d - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
 ", repoBuilder.Git.Log());
 		}
 
@@ -341,7 +341,7 @@ Log for feature/speed
 		[Fact]
 		public void When_detached_head_Then_git_branches_shows_detached_as_branch()
 		{
-			repoBuilder = new RepoBuilder("a", @"c:\temp\");
+			repoBuilder = new RepoBuilder(@"c:\temp\");
 			var detachedId = repoBuilder
 				.EmptyRepo()
 				.AddFile("a.txt")
@@ -353,22 +353,22 @@ Log for feature/speed
 			repoBuilder.Git.Checkout(detachedId);
 
 			Assert.Equal($@"* (HEAD detached at {detachedId.ToString().Substring(0, 7)})
-  a/master", repoBuilder.Git.Branch());
+  master", repoBuilder.Git.Branch());
 		}
 
 		[Fact]
 		public void When_branching_Then_Branchinfo_show_new_branchname()
 		{
-			repoBuilder = new RepoBuilder("a", @"c:\temp\");
+			repoBuilder = new RepoBuilder(@"c:\temp\");
 			repoBuilder
 				.EmptyRepo()
 				.AddFile("a.txt")
 				.Commit();
-			Assert.Equal("* a/master", repoBuilder.Git.Branch());
+			Assert.Equal("* master", repoBuilder.Git.Branch());
 
 			repoBuilder.NewBranch("featurebranch");
-			Assert.Equal(@"* a/featurebranch
-  a/master", repoBuilder.Git.Branch());
+			Assert.Equal(@"* featurebranch
+  master", repoBuilder.Git.Branch());
 		}
 	}
 
@@ -384,7 +384,7 @@ Log for feature/speed
 			while (!gitServerThread.Running.HasValue)
 				Thread.Sleep(50); 
 			var localGit = new RepoBuilder().EmptyRepo().AddLocalHostRemote().Git;
-			new GitNetworkClient().PullBranch(localGit.Hd.Remotes.First(),"reponame/master", localGit);
+			new GitNetworkClient().PullBranch(localGit.Hd.Remotes.First(),"master", localGit);
 
 			gitServerThread.Abort();
 			

@@ -7,28 +7,26 @@ namespace kbgit.tests
 	public class RepoBuilder
 	{
 		readonly string basePath;
-		readonly string repositoryName;
 		public KBGit Git;
 
-		public RepoBuilder() : this("reponame", @"c:\temp\", Guid.NewGuid()) { }
-		public RepoBuilder(Guid unittestguid) : this("reponame", @"c:\temp\", unittestguid) { }
-		public RepoBuilder(string repositoryName, string basePath) : this(repositoryName, basePath, Guid.NewGuid()) { }
-		public RepoBuilder(string repositoryName, string basePath, Guid unittestguid)
+		public RepoBuilder() : this(@"c:\temp\", Guid.NewGuid()) { }
+		public RepoBuilder(Guid unittestguid) : this(@"c:\temp\", unittestguid) { }
+		public RepoBuilder(string basePath) : this(basePath, Guid.NewGuid()) { }
+		public RepoBuilder(string basePath, Guid unittestguid)
 		{
 			this.basePath = Path.Combine(basePath, $"kbgit\\{unittestguid}\\");
-			this.repositoryName = repositoryName;
 		}
 
 		public KBGit BuildEmptyRepo()
 		{
-			Git = new KBGit(repositoryName, basePath);
+			Git = new KBGit(basePath);
 			Git.Init();
 			return Git;
 		}
 
 		public RepoBuilder EmptyRepo()
 		{
-			Git = new KBGit(repositoryName, basePath);
+			Git = new KBGit(basePath);
 			Git.Init();
 			return this;
 		}

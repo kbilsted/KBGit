@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading;
 
 namespace KbgSoft.KBGit
 {
@@ -16,11 +16,9 @@ namespace KbgSoft.KBGit
 
 		public static string Compute(object o)
 		{
-			var stream = new MemoryStream();
-			new BinaryFormatter().Serialize(stream, o);
-			stream.Seek(0, SeekOrigin.Begin);
+			return string.Join("", sha.ComputeHash(Serialize(o)).Select(x => String.Format("{0:x2}", x)));
+		}
 
-			return string.Join("", sha.ComputeHash(stream).Select(x => String.Format("{0:x2}", x)));
 		public static byte[] Serialize(object o)
 		{
 			using (var stream = new MemoryStream())
@@ -35,8 +33,7 @@ namespace KbgSoft.KBGit
 		{
 			using (MemoryStream ms = new MemoryStream(param))
 			{
-				IFormatter br = new BinaryFormatter();
-				return (br.Deserialize(ms) as T);
+				return (new BinaryFormatter().Deserialize(ms) as T);
 			}
 		}
 	}
@@ -71,13 +68,7 @@ namespace KbgSoft.KBGit
 		public static Id HashObject(object o) => new Id(Sha.Compute(o));
 
 		public override string ToString() => ShaId;
-
 		public override bool Equals(object obj) => ShaId.Equals((obj as Id)?.ShaId);
-
-		public static bool operator ==(Id a, Id b) => ReferenceEquals(a, b) || (!ReferenceEquals(a, null) && a.Equals(b));
-
-		public static bool operator !=(Id a, Id b) => !(a==b);
-
 		public override int GetHashCode() => ShaId.GetHashCode();
 	}
 
@@ -131,16 +122,16 @@ namespace KbgSoft.KBGit
 
 		public void Update(Id position, Storage s)
 		{
-			var b = s.Branches.FirstOrDefault(x => x.Value.Tip == position);
-			if(b.Key==null)
+			var b = s.Branches.FirstOrDefault(x => x.Value.Tip.Equals(position));
+			if(b.Key == null)
 			{
 				if (!s.Commits.ContainsKey(position))
 					throw new ArgumentOutOfRangeException($"No commit with id '{position}'");
+
+				Console.WriteLine("You are in 'detached HEAD' state. You can look around, make experimental changes and commit them, and you can discard any commits you make in this state without impacting any branches by performing another checkout.");
+
 				Branch = null;
 				Id = position;
-
-				Console.WriteLine(
-					"You are in 'detached HEAD' state. You can look around, make experimental changes and commit them, and you can discard any commits you make in this state without impacting any branches by performing another checkout.");
 			}
 			else
 			{
@@ -230,10 +221,7 @@ namespace KbgSoft.KBGit
 	{
 		public string Content { get; }
 
-		public BlobNode(string content)
-		{
-			Content = content;
-		}
+		public BlobNode(string content) => Content = content;
 	}
 
 	[Serializable]
@@ -259,16 +247,14 @@ namespace KbgSoft.KBGit
 	{
 		public void PushBranch(string url, string branch, Id fromPosition, KeyValuePair<Id, CommitNode>[] nodes)
 		{
-			HttpClient client = new HttpClient();
 			var request = new GitPushBranchRequest() {Branch = branch, LatestRemoteBranchPosition = fromPosition, Commits = nodes};
-			var result = client.PostAsync(new Uri(url), new ByteArrayContent(Sha.Serialize(request))).GetAwaiter().GetResult();
+			var result = new HttpClient().PostAsync(new Uri(url), new ByteArrayContent(Sha.Serialize(request))).GetAwaiter().GetResult();
 			Console.WriteLine(result.StatusCode.ToString());
 		}
 
 		public GitPullResponse PullBranch(Remote remote, string branch, KBGit git)
 		{
-			HttpClient client = new HttpClient();
-			var bytes = client.GetByteArrayAsync(remote.Url + "?branch=" + branch).GetAwaiter().GetResult();
+			var bytes = new HttpClient().GetByteArrayAsync(remote.Url + "?branch=" + branch).GetAwaiter().GetResult();
 			var commits = Sha.Deserialize<GitPullResponse>(bytes);
 			Console.WriteLine("*");
 			
@@ -317,7 +303,7 @@ namespace KbgSoft.KBGit
 				}
 				catch (Exception e)
 				{
-					Console.WriteLine(e);
+					Console.WriteLine($"\n\n{DateTime.Now}\n{e} - {e.Message}");
 					context.Response.StatusCode = 500;
 					context.Response.Close();
 				}
@@ -365,27 +351,13 @@ namespace KbgSoft.KBGit
 	public class KBGit
 	{
 		public const string KBGitFolderName = ".git";
-		private readonly string repositoryName;
 		public string CodeFolder { get; }
-		const string Datafile = "kbgit.json";
 		public Storage Hd;
 
-		public KBGit(string repositoryName, string startpath)
+		public KBGit(string startpath)
 		{
-			this.repositoryName = repositoryName;
-			LoadState();
 			CodeFolder = startpath;
 			// Path.Combine(CodeFolder, KBGitFolderName, Datafile);
-		}
-
-		public string FullName(string branchname) => branchname.Contains("/") ? branchname : repositoryName + "/" + branchname;
-
-		public void LoadState()
-		{
-		}
-
-		public void SaveState()
-		{
 		}
 
 		/// <summary>
@@ -394,21 +366,15 @@ namespace KbgSoft.KBGit
 		public void Init()
 		{
 			Hd = new Storage();
-			var branch = FullName("master");
-			CheckOut_b(branch, null);
-			SaveState();
+			CheckOut_b("master", null);
 		}
 
 		/// <summary> Create a branch: e.g "git checkout -b foo" </summary>
-		public void CheckOut_b(string name)
-		{
-			CheckOut_b(name, Hd.Head.GetId(Hd));
-		}
+		public void CheckOut_b(string name) => CheckOut_b(name, Hd.Head.GetId(Hd));
 
 		/// <summary> Create a branch: e.g "git checkout -b foo fb1234.."</summary>
 		public void CheckOut_b(string name, Id position)
 		{
-			name = FullName(name);
 			Hd.Branches.Add(name, new Branch(position, position));
 			ResetCodeFolder(position);
 			Hd.Head.Update(name, Hd);
@@ -464,8 +430,6 @@ namespace KbgSoft.KBGit
 			else
 				Hd.Branches[Hd.Head.Branch].Tip = commitId;
 
-			SaveState();
-
 			return commitId;
 		}
 
@@ -508,8 +472,6 @@ namespace KbgSoft.KBGit
 			else
 				Hd.Branches[Hd.Head.Branch].Tip = commitId;
 
-			SaveState();
-
 			return commitId;
 		}
 
@@ -540,18 +502,12 @@ namespace KbgSoft.KBGit
 		/// <summary>
 		/// Delete a branch. eg. "git branch -D name"
 		/// </summary>
-		public void Branch_D(string branch)
-		{
-			var name = FullName(branch);
-			Hd.Branches.Remove(name);
-		}
+		public void Branch_D(string branch) => Hd.Branches.Remove(branch);
 
-		public void Checkout(string branch)
-		{
-			if (!Hd.Branches.ContainsKey(branch))
-				branch = FullName(branch);
-			Checkout(Hd.Branches[branch].Tip);
-		}
+		/// <summary>
+		/// Change HEAD to branch,e.g. "git checkout featurebranch"
+		/// </summary>
+		public void Checkout(string branch) => Checkout(Hd.Branches[branch].Tip);
 
 		/// <summary>
 		/// Change folder content to commit position and move HEAD 
@@ -562,6 +518,9 @@ namespace KbgSoft.KBGit
 			Hd.Head.Update(id, Hd);
 		}
 
+		/// <summary>
+		/// eg. "git log"
+		/// </summary>
 		public string Log()
 		{
 			var sb = new StringBuilder();
@@ -664,11 +623,10 @@ namespace KbgSoft.KBGit
 			var branched = Hd.Branches
 				.OrderBy(x => x.Key)
 				.Select(x => $"{(Hd.Head.Branch == x.Key ? "*" : " ")} {x.Key}");
-			var headInfo = Hd.Head.IsDetachedHead()
-				? new[] { $"* (HEAD detached at {Hd.Head.Id.ToString().Substring(0, 7)})" }
-				: new string[0];
 
-			return string.Join("\r\n", headInfo.Concat(branched));
+			var detached = Hd.Head.IsDetachedHead() ? $"* (HEAD detached at {Hd.Head.Id.ToString().Substring(0, 7)})\r\n" : "";
+
+			return detached + string.Join("\r\n", branched);
 		}
 	}
 }

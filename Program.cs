@@ -14,7 +14,7 @@ namespace KbgSoft.KBGit {
 		}
 
 		public static void Main() {
-			var git = new KBGit("kbilsted", @"c:\temp\kbgit\");
+			var git = new KBGit(@"c:\temp\kbgit\");
 			git.Init();
 
 			File.WriteAllText(git.CodeFolder + "file.txt", "Hello world");
