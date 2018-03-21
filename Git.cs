@@ -26,11 +26,13 @@ namespace KbgSoft.KBGit
 			}
 		}
 
-		public static T Deserialize<T>(byte[] param) where T : class
+		public static T Deserialize<T>(Stream s) where T : class => (T) new BinaryFormatter().Deserialize(s);
+
+		public static T Deserialize<T>(byte[] o) where T : class
 		{
-			using (MemoryStream ms = new MemoryStream(param))
+			using (var ms = new MemoryStream(o))
 			{
-				return (new BinaryFormatter().Deserialize(ms) as T);
+				return (T) new BinaryFormatter().Deserialize(ms);
 			}
 		}
 	}
@@ -242,20 +244,18 @@ namespace KbgSoft.KBGit
 	/// </summary>
 	public class GitNetworkClient
 	{
-		public void PushBranch(string url, string branch, Id fromPosition, KeyValuePair<Id, CommitNode>[] nodes)
+		public void PushBranch(Remote remote, string branch, Branch branchInfo, Id fromPosition, KeyValuePair<Id, CommitNode>[] nodes)
 		{
-			var request = new GitPushBranchRequest() {Branch = branch, LatestRemoteBranchPosition = fromPosition, Commits = nodes};
-			var result = new HttpClient().PostAsync(new Uri(url), new ByteArrayContent(ByteHelper.Serialize(request))).GetAwaiter().GetResult();
-			Console.WriteLine(result.StatusCode.ToString());
+			var request = new GitPushBranchRequest() {Branch = branch, BranchInfo = branchInfo, LatestRemoteBranchPosition = fromPosition, Commits = nodes};
+			var result = new HttpClient().PostAsync(remote.Url, new ByteArrayContent(ByteHelper.Serialize(request))).GetAwaiter().GetResult();
+			Console.WriteLine($"Push status: {result.StatusCode}");
 		}
 
-		public GitPullResponse PullBranch(Remote remote, string branch, KBGit git)
+		public void PullBranch(Remote remote, string branch, KBGit git)
 		{
 			var bytes = new HttpClient().GetByteArrayAsync(remote.Url + "?branch=" + branch).GetAwaiter().GetResult();
 			var commits = ByteHelper.Deserialize<GitPullResponse>(bytes);
-			Console.WriteLine("*");
-			
-			return commits;
+			git.RawImportCommits(commits.Commits, $"{remote.Name}/{branch}", commits.BranchInfo);
 		}
 	}
 
@@ -291,11 +291,28 @@ namespace KbgSoft.KBGit
 				{
 					if (context.Request.HttpMethod == "GET")
 					{
-						ReceivePullBranch(context);
+						var branch = context.Request.QueryString.Get("branch");
+
+						if (!git.Hd.Branches.ContainsKey(branch))
+						{
+							context.Response.StatusCode = 404;
+							context.Response.Close();
+							continue;
+						}
+
+						context.Response.Close(ByteHelper.Serialize(new GitPullResponse()
+						{
+							BranchInfo = git.Hd.Branches[branch],
+							Commits = git.GetReachableNodes(git.Hd.Branches[branch].Tip).ToArray()
+						}), true);
 					}
+
 					if(context.Request.HttpMethod == "POST")
 					{
-						ReceivePushBranch(context);
+						var req = ByteHelper.Deserialize<GitPushBranchRequest>(context.Request.InputStream);
+						// todo check if we are loosing commits when updating the branch pointer..we get a fromid with the request
+						git.RawImportCommits(req.Commits, req.Branch, req.BranchInfo);
+						context.Response.Close();
 					}
 				}
 				catch (Exception e)
@@ -305,34 +322,6 @@ namespace KbgSoft.KBGit
 					context.Response.Close();
 				}
 			}
-		}
-
-		private void ReceivePushBranch(HttpListenerContext context)
-		{
-			string text;
-			using (var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding))
-			{
-				text = reader.ReadToEnd();
-			}
-			Console.WriteLine(context.Request.HttpMethod + "\n"+text);
-		}
-
-		private void ReceivePullBranch(HttpListenerContext context)
-		{
-			var branch = context.Request.QueryString.Get("branch");
-
-			if (!git.Hd.Branches.ContainsKey(branch))
-			{
-				context.Response.StatusCode = 404;
-				context.Response.Close();
-				return;
-			}
-
-			context.Response.Close(ByteHelper.Serialize(new GitPullResponse()
-			{
-				BranchInfo = git.Hd.Branches[branch],
-				Commits = git.GetReachableNodes(git.Hd.Branches[branch].Tip).ToArray()
-			}), true);
 		}
 	}
 
@@ -440,6 +429,7 @@ namespace KbgSoft.KBGit
 			}).ToArray();
 
 			var treeNode = new TreeNode(blobsInCommit.Select(x => new BlobTreeLine(x.blobid, x.blob, x.file.Path)).ToArray());
+			var treeNodeId = Id.HashObject(treeNode);
 
 			var parentCommitId = Hd.Head.GetId(Hd);
 			var isFirstCommit = parentCommitId == null;
@@ -447,12 +437,12 @@ namespace KbgSoft.KBGit
 			{
 				Time = now,
 				Tree = treeNode,
+				TreeId = treeNodeId,
 				Author = author,
 				Message = message,
 				Parents = isFirstCommit ? new Id[0] : new[] {parentCommitId},
 			};
 
-			var treeNodeId = Id.HashObject(treeNode);
 			if(!Hd.Trees.ContainsKey(treeNodeId))
 				Hd.Trees.Add(treeNodeId, treeNode);
 
@@ -524,6 +514,10 @@ namespace KbgSoft.KBGit
 			foreach (var branch in Hd.Branches)
 			{
 				sb.AppendLine($"Log for {branch.Key}");
+
+				if (branch.Value.Tip == null) // empty repo
+					continue;
+
 				var nodes = GetReachableNodes(branch.Value.Tip);
 				foreach (var comit in nodes.OrderByDescending(x => x.Value.Time))
 				{
@@ -556,6 +550,34 @@ namespace KbgSoft.KBGit
 			{
 				Hd.Commits.Remove(delete);
 			}
+		}
+
+		internal void RawImportCommits(KeyValuePair<Id, CommitNode>[] commits, string branch, Branch branchInfo)
+		{
+			Console.WriteLine("RawImportCommits");
+			foreach (var commit in commits)
+			{
+				Console.WriteLine("import c"+commit.Key);
+				Hd.Commits.TryAdd(commit.Key, commit.Value);
+				Hd.Trees.TryAdd(commit.Value.TreeId, commit.Value.Tree);
+
+				foreach (var treeLine in commit.Value.Tree.Lines)
+				{
+					if (treeLine is BlobTreeLine b)
+					{
+						Console.WriteLine("import b "+b.Id);
+						Hd.Blobs.TryAdd(b.Id, b.Blob);
+					}
+
+					if (treeLine is TreeTreeLine t)
+					{
+						Console.WriteLine("import t "+t.Id);
+						Hd.Trees.TryAdd(t.Id, t.Tree);
+					}
+				}
+			}
+
+			AddOrSetBranch(branch, branchInfo);
 		}
 
 		public Fileinfo[] ScanFileSystem()

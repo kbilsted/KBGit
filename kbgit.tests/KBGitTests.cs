@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using KbgSoft.KBGit;
-using Microsoft.VisualStudio.TestPlatform.PlatformAbstractions.Interfaces;
 using Xunit;
 
 namespace kbgit.tests
@@ -238,6 +238,17 @@ visitblob FeatureVolvo\car.txt
 
 	public class LogTests
 	{
+
+
+		[Fact]
+		public void When_empty_repo_Then_log_returns_empty()
+		{
+			var repoBuilder = new RepoBuilder().EmptyRepo();
+
+			Assert.Equal(@"Log for master
+", repoBuilder.Git.Log());
+		}
+
 		[Fact]
 		public void When_one_commit_Then_log_one_line()
 		{
@@ -297,6 +308,16 @@ Log for feature/speed
 	public class GitCommitTests
 	{
 		RepoBuilder repoBuilder = new RepoBuilder();
+
+		[Fact]
+		public void When_Commit_Then_treeid_information_is_Stored()
+		{
+			repoBuilder.EmptyRepo().AddFile("a.txt").Commit();
+
+			var commit = repoBuilder.Git.Hd.Commits.First();
+			Assert.NotNull(commit.Value.Tree);
+			Assert.NotNull(commit.Value.TreeId);
+		}
 
 		[Fact]
 		public void When_Commit_Then_content_is_stored()
@@ -377,18 +398,52 @@ Log for feature/speed
 		[Fact]
 		public void When_pulling_Then_receive_all_nodes()
 		{
-			var serverGit = new RepoBuilder().Build2Files3Commits();
-			var gitServerThread = new GitServer(serverGit);
-			var t = new TaskFactory().StartNew(() => gitServerThread.Serve(8080));
+			var remoteGit = new RepoBuilder().Build2Files3Commits();
+			var gitServer = SpinUpServer(remoteGit, 18081);
+			var localGit = new RepoBuilder().EmptyRepo().AddLocalHostRemote(18081).Git;
 
-			while (!gitServerThread.Running.HasValue)
-				Thread.Sleep(50); 
-			var localGit = new RepoBuilder().EmptyRepo().AddLocalHostRemote().Git;
-			new GitNetworkClient().PullBranch(localGit.Hd.Remotes.First(),"master", localGit);
+			new GitNetworkClient().PullBranch(localGit.Hd.Remotes.First(), "master", localGit);
 
-			gitServerThread.Abort();
-			
+			Assert.Equal(@"Log for master
+Log for origin/master
+* d2c19da - Add a2 (2017/03/03 03:03:03) <kasper> 
+* 5b65531 - Add b (2017/02/02 02:02:02) <kasper> 
+* 27047ec - Add a (2017/01/01 01:01:01) <kasper> 
+", localGit.Log());
+			gitServer.Abort();
+		}
+
+		[Fact]
+		public void When_pushing_Then_push_nodes_and_update_branchpointer_on_server()
+		{
+			var remoteGit = new RepoBuilder().BuildEmptyRepo();
+			var gitServer = SpinUpServer(remoteGit, 18083);
+			var localbuilder = new RepoBuilder();
+			var localGit = localbuilder.Build2Files3Commits();
+			localbuilder.AddLocalHostRemote(18083);
+
+			Branch branch = localGit.Hd.Branches["master"];
+			var commits = localGit.GetReachableNodes(branch.Tip).ToArray();
+			new GitNetworkClient().PushBranch(localGit.Hd.Remotes.First(), "master", branch, null, commits);
+
+			Assert.Equal(@"Log for master
+* d2c19da - Add a2 (2017/03/03 03:03:03) <kasper> 
+* 5b65531 - Add b (2017/02/02 02:02:02) <kasper> 
+* 27047ec - Add a (2017/01/01 01:01:01) <kasper> 
+", remoteGit.Log());
+			gitServer.Abort();
+		}
+
+		private Task t;
+		GitServer SpinUpServer(KBGit git, int port)
+		{
+			var server = new GitServer(git);
+			t = new TaskFactory().StartNew(() => server.Serve(port));
+
+			while (!server.Running.HasValue)
+				Thread.Sleep(50);
+
+			return server;
 		}
 	}
-
 }
