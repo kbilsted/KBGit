@@ -10,11 +10,11 @@ using System.Text;
 
 namespace KbgSoft.KBGit
 {
-	public static class Sha
+	public static class ByteHelper
 	{
 		static readonly SHA256 sha = SHA256.Create();
 
-		public static string Compute(object o)
+		public static string ComputeSha(object o)
 		{
 			return string.Join("", sha.ComputeHash(Serialize(o)).Select(x => String.Format("{0:x2}", x)));
 		}
@@ -65,7 +65,7 @@ namespace KbgSoft.KBGit
 		/// <summary>
 		/// Equivalent to "git hash-object -w <file>"
 		/// </summary>
-		public static Id HashObject(object o) => new Id(Sha.Compute(o));
+		public static Id HashObject(object o) => new Id(ByteHelper.ComputeSha(o));
 
 		public override string ToString() => ShaId;
 		public override bool Equals(object obj) => ShaId.Equals((obj as Id)?.ShaId);
@@ -248,14 +248,14 @@ namespace KbgSoft.KBGit
 		public void PushBranch(string url, string branch, Id fromPosition, KeyValuePair<Id, CommitNode>[] nodes)
 		{
 			var request = new GitPushBranchRequest() {Branch = branch, LatestRemoteBranchPosition = fromPosition, Commits = nodes};
-			var result = new HttpClient().PostAsync(new Uri(url), new ByteArrayContent(Sha.Serialize(request))).GetAwaiter().GetResult();
+			var result = new HttpClient().PostAsync(new Uri(url), new ByteArrayContent(ByteHelper.Serialize(request))).GetAwaiter().GetResult();
 			Console.WriteLine(result.StatusCode.ToString());
 		}
 
 		public GitPullResponse PullBranch(Remote remote, string branch, KBGit git)
 		{
 			var bytes = new HttpClient().GetByteArrayAsync(remote.Url + "?branch=" + branch).GetAwaiter().GetResult();
-			var commits = Sha.Deserialize<GitPullResponse>(bytes);
+			var commits = ByteHelper.Deserialize<GitPullResponse>(bytes);
 			Console.WriteLine("*");
 			
 			return commits;
@@ -331,7 +331,7 @@ namespace KbgSoft.KBGit
 				return;
 			}
 
-			context.Response.Close(Sha.Serialize(new GitPullResponse()
+			context.Response.Close(ByteHelper.Serialize(new GitPullResponse()
 			{
 				BranchInfo = git.Hd.Branches[branch],
 				Commits = git.GetReachableNodes(git.Hd.Branches[branch].Tip).ToArray()
@@ -438,7 +438,7 @@ namespace KbgSoft.KBGit
 			var blobsInCommit = fileinfo.Select(x => new
 			{
 				file = x,
-				blobid = new Id(Sha.Compute(x.Content)),
+				blobid = new Id(ByteHelper.ComputeSha(x.Content)),
 				blob = new BlobNode(x.Content)
 			}).ToArray();
 
@@ -597,7 +597,7 @@ namespace KbgSoft.KBGit
 
 			tree.AddRange(entries.OfType<FileInfo>()
 				.Select(x => new {Content = File.ReadAllText(x.FullName), x.FullName})
-				.Select(x => new BlobTreeLine(new Id(Sha.Compute(x.Content)), new BlobNode(x.Content), x.FullName.Substring(CodeFolder.Length))));
+				.Select(x => new BlobTreeLine(new Id(ByteHelper.ComputeSha(x.Content)), new BlobNode(x.Content), x.FullName.Substring(CodeFolder.Length))));
 
 			tree.AddRange(entries.OfType<DirectoryInfo>()
 				.Where(x => !x.FullName.EndsWith(KBGitFolderName))
