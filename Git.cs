@@ -12,12 +12,9 @@ namespace KbgSoft.KBGit
 {
 	public static class ByteHelper
 	{
-		static readonly SHA256 sha = SHA256.Create();
+		static readonly SHA256 Sha = SHA256.Create();
 
-		public static string ComputeSha(object o)
-		{
-			return string.Join("", sha.ComputeHash(Serialize(o)).Select(x => String.Format("{0:x2}", x)));
-		}
+		public static string ComputeSha(object o) => string.Join("", Sha.ComputeHash(Serialize(o)).Select(x => String.Format("{0:x2}", x)));
 
 		public static byte[] Serialize(object o)
 		{
