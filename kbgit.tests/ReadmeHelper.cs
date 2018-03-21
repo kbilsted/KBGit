@@ -9,7 +9,7 @@ namespace kbgit.tests
 {
 	public class ReadMeHelper
 	{
-		//[Fact]
+		[Fact]
 		public void MutateReadme()
 		{
 			var basePath = Path.Combine(Assembly.GetExecutingAssembly().Location, "..", "..", "..", "..", "..");
