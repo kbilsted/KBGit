@@ -50,6 +50,7 @@ KBGit..what?? My initials are *K.B.G.* - hence the name KBGit :-)
  * blob compression
  * store git state on disk 
  * command line parser
+ * clone
 
 
 I will blog about the implementation on [http://firstclassthoughts.co.uk/](http://firstclassthoughts.co.uk/) 

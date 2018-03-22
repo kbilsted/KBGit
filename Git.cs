@@ -10,6 +10,331 @@ using System.Text;
 
 namespace KbgSoft.KBGit
 {
+
+	/// <summary>
+	/// Mini clone of git
+	/// Supporting
+	/// * commits
+	/// * branches
+	/// * detached heads
+	/// * checkout old commits
+	/// * logging
+	/// </summary>
+	public class KBGit
+	{
+		public const string KBGitFolderName = ".git";
+		public string CodeFolder { get; }
+		public Storage Hd;
+
+		public KBGit(string startpath)
+		{
+			CodeFolder = startpath;
+			// Path.Combine(CodeFolder, KBGitFolderName, Datafile);
+		}
+
+		/// <summary>
+		/// Initialize a repo. eg. "git init"
+		/// </summary>
+		public void Init()
+		{
+			Hd = new Storage();
+			CheckOut_b("master", null);
+		}
+
+		/// <summary> Create a branch: e.g "git checkout -b foo" </summary>
+		public void CheckOut_b(string name) => CheckOut_b(name, Hd.Head.GetId(Hd));
+
+		/// <summary> Create a branch: e.g "git checkout -b foo fb1234.."</summary>
+		public void CheckOut_b(string name, Id position)
+		{
+			Hd.Branches.Add(name, new Branch(position, position));
+			ResetCodeFolder(position);
+			Hd.Head.Update(name, Hd);
+		}
+
+		/// <summary>
+		/// Simulate syntax: e.g. "HEAD~2"
+		/// </summary>
+		public Id HeadRef(int numberOfPredecessors)
+		{
+			var result = Hd.Head.GetId(Hd);
+			for (int i = 0; i < numberOfPredecessors; i++)
+			{
+				result = Hd.Commits[result].Parents.First();
+			}
+
+			return result;
+		}
+
+		/// <summary>
+		/// Equivalent to "git hash-object -w <file>"
+		/// </summary>
+		public Id HashObject(string content) => Id.HashObject(content);
+
+		public Id Commit(string message, string author, DateTime now)
+		{
+			var composite = FileSystemScanFolder(CodeFolder);
+			composite.Visit(x =>
+			{
+				if (x is TreeTreeLine t)
+					Hd.Trees.TryAdd(t.Id, t.Tree);
+				if (x is BlobTreeLine b)
+					Hd.Blobs.TryAdd(b.Id, b.Blob);
+			});
+
+			var parentCommitId = Hd.Head.GetId(Hd);
+			var isFirstCommit = parentCommitId == null;
+			var commit = new CommitNode
+			{
+				Time = now,
+				Tree = composite.Tree,
+				TreeId = composite.Id,
+				Author = author,
+				Message = message,
+				Parents = isFirstCommit ? new Id[0] : new[] { parentCommitId },
+			};
+
+			var commitId = Id.HashObject(commit);
+			Hd.Commits.Add(commitId, commit);
+
+			if (Hd.Head.IsDetachedHead())
+				Hd.Head.Update(commitId, Hd);
+			else
+				Hd.Branches[Hd.Head.Branch].Tip = commitId;
+
+			return commitId;
+		}
+
+		public Id Commit(string message, string author, DateTime now, params Fileinfo[] fileinfo)
+		{
+			var blobsInCommit = fileinfo.Select(x => new
+			{
+				file = x,
+				blobid = new Id(ByteHelper.ComputeSha(x.Content)),
+				blob = new BlobNode(x.Content)
+			}).ToArray();
+
+			var treeNode = new TreeNode(blobsInCommit.Select(x => new BlobTreeLine(x.blobid, x.blob, x.file.Path)).ToArray());
+			var treeNodeId = Id.HashObject(treeNode);
+
+			var parentCommitId = Hd.Head.GetId(Hd);
+			var isFirstCommit = parentCommitId == null;
+			var commit = new CommitNode
+			{
+				Time = now,
+				Tree = treeNode,
+				TreeId = treeNodeId,
+				Author = author,
+				Message = message,
+				Parents = isFirstCommit ? new Id[0] : new[] { parentCommitId },
+			};
+
+			if (!Hd.Trees.ContainsKey(treeNodeId))
+				Hd.Trees.Add(treeNodeId, treeNode);
+
+			foreach (var blob in blobsInCommit.Where(x => !Hd.Blobs.ContainsKey(x.blobid)))
+			{
+				Hd.Blobs.Add(blob.blobid, blob.blob);
+			}
+
+			var commitId = Id.HashObject(commit);
+			Hd.Commits.Add(commitId, commit);
+
+			if (Hd.Head.IsDetachedHead())
+				Hd.Head.Update(commitId, Hd);
+			else
+				Hd.Branches[Hd.Head.Branch].Tip = commitId;
+
+			return commitId;
+		}
+
+		void ResetCodeFolder(Id position)
+		{
+			if (Directory.Exists(CodeFolder))
+				Directory.Delete(CodeFolder, true);
+			Directory.CreateDirectory(CodeFolder);
+
+			if (position != null)
+			{
+				var commit = Hd.Commits[position];
+				foreach (BlobTreeLine line in commit.Tree.Lines)
+				{
+					File.WriteAllText(Path.Combine(CodeFolder, line.Path), line.Blob.Content);
+				}
+			}
+		}
+
+		internal void AddOrSetBranch(string branch, Branch branchInfo)
+		{
+			if (Hd.Branches.ContainsKey(branch))
+				Hd.Branches[branch].Tip = branchInfo.Tip;
+			else
+				Hd.Branches.Add(branch, branchInfo);
+		}
+
+		/// <summary>
+		/// Delete a branch. eg. "git branch -D name"
+		/// </summary>
+		public void Branch_D(string branch) => Hd.Branches.Remove(branch);
+
+		/// <summary>
+		/// Change HEAD to branch,e.g. "git checkout featurebranch"
+		/// </summary>
+		public void Checkout(string branch) => Checkout(Hd.Branches[branch].Tip);
+
+		/// <summary>
+		/// Change folder content to commit position and move HEAD 
+		/// </summary>
+		public void Checkout(Id id)
+		{
+			ResetCodeFolder(id);
+			Hd.Head.Update(id, Hd);
+		}
+
+		/// <summary>
+		/// eg. "git log"
+		/// </summary>
+		public string Log()
+		{
+			var sb = new StringBuilder();
+			foreach (var branch in Hd.Branches)
+			{
+				sb.AppendLine($"Log for {branch.Key}");
+
+				if (branch.Value.Tip == null) // empty repo
+					continue;
+
+				var nodes = GetReachableNodes(branch.Value.Tip);
+				foreach (var comit in nodes.OrderByDescending(x => x.Value.Time))
+				{
+					var commitnode = comit.Value;
+					var key = comit.Key.ToString().Substring(0, 7);
+					var msg = commitnode.Message.Substring(0, Math.Min(40, commitnode.Message.Length));
+					var author = $"{commitnode.Author}";
+
+					sb.AppendLine($"* {key} - {msg} ({commitnode.Time:yyyy/MM/dd hh\\:mm\\:ss}) <{author}> ");
+				}
+			}
+
+			return sb.ToString();
+		}
+
+		/// <summary>
+		/// Clean out unreferences nodes. Equivalent to "git gc"
+		/// </summary>
+		public void Gc()
+		{
+			var reachables = Hd.Branches.Select(x => x.Value.Tip)
+				.Union(new[] { Hd.Head.GetId(Hd) })
+				.SelectMany(x => GetReachableNodes(x))
+				.Select(x => x.Key);
+
+			var deletes = Hd.Commits.Select(x => x.Key)
+				.Except(reachables);
+
+			foreach (var delete in deletes)
+			{
+				Hd.Commits.Remove(delete);
+			}
+		}
+
+		internal void RawImportCommits(KeyValuePair<Id, CommitNode>[] commits, string branch, Branch branchInfo)
+		{
+			Console.WriteLine("RawImportCommits");
+			foreach (var commit in commits)
+			{
+				Console.WriteLine("import c" + commit.Key);
+				Hd.Commits.TryAdd(commit.Key, commit.Value);
+				Hd.Trees.TryAdd(commit.Value.TreeId, commit.Value.Tree);
+
+				foreach (var treeLine in commit.Value.Tree.Lines)
+				{
+					if (treeLine is BlobTreeLine b)
+					{
+						Console.WriteLine("import b " + b.Id);
+						Hd.Blobs.TryAdd(b.Id, b.Blob);
+					}
+
+					if (treeLine is TreeTreeLine t)
+					{
+						Console.WriteLine("import t " + t.Id);
+						Hd.Trees.TryAdd(t.Id, t.Tree);
+					}
+				}
+			}
+
+			AddOrSetBranch(branch, branchInfo);
+		}
+
+		public Fileinfo[] ScanFileSystem()
+		{
+			return new DirectoryInfo(CodeFolder).EnumerateFiles("*", SearchOption.AllDirectories)
+				.Select(x => new Fileinfo(x.FullName.Substring(CodeFolder.Length), File.ReadAllText(x.FullName)))
+				.ToArray();
+		}
+
+		public List<KeyValuePair<Id, CommitNode>> GetReachableNodes(Id id)
+		{
+			var result = new List<KeyValuePair<Id, CommitNode>>();
+			GetReachableNodes(id);
+
+			void GetReachableNodes(Id currentId)
+			{
+				var commit = Hd.Commits[currentId];
+				result.Add(new KeyValuePair<Id, CommitNode>(currentId, commit));
+
+				foreach (var parent in commit.Parents)
+				{
+					GetReachableNodes(parent);
+				}
+			}
+
+			return result;
+		}
+
+		public TreeTreeLine FileSystemScanFolder(string path) => MakeTreeTreeLine(path);
+
+		public ITreeLine[] FileSystemScanSubFolder(string path)
+		{
+			var entries = new DirectoryInfo(path).EnumerateFileSystemInfos("*", SearchOption.TopDirectoryOnly).ToArray();
+
+			var tree = new List<ITreeLine>();
+
+			tree.AddRange(entries.OfType<FileInfo>()
+				.Select(x => new { Content = File.ReadAllText(x.FullName), x.FullName })
+				.Select(x => new BlobTreeLine(new Id(ByteHelper.ComputeSha(x.Content)), new BlobNode(x.Content), x.FullName.Substring(CodeFolder.Length))));
+
+			tree.AddRange(entries.OfType<DirectoryInfo>()
+				.Where(x => !x.FullName.EndsWith(KBGitFolderName))
+				.Select(x => MakeTreeTreeLine(x.FullName)));
+
+			return tree.ToArray();
+		}
+
+		private TreeTreeLine MakeTreeTreeLine(string path)
+		{
+			var folderentries = FileSystemScanSubFolder(path);
+			var treenode = new TreeNode(folderentries);
+			var id = Id.HashObject(folderentries);
+
+			return new TreeTreeLine(id, treenode, path.Substring(CodeFolder.Length));
+		}
+
+		/// <summary>
+		/// return all branches and highlight current branch: "git branch"
+		/// </summary>
+		public string Branch()
+		{
+			var branched = Hd.Branches
+				.OrderBy(x => x.Key)
+				.Select(x => $"{(Hd.Head.Branch == x.Key ? "*" : " ")} {x.Key}");
+
+			var detached = Hd.Head.IsDetachedHead() ? $"* (HEAD detached at {Hd.Head.Id.ToString().Substring(0, 7)})\r\n" : "";
+
+			return detached + string.Join("\r\n", branched);
+		}
+	}
+
 	public static class ByteHelper
 	{
 		static readonly SHA256 Sha = SHA256.Create();
@@ -322,330 +647,6 @@ namespace KbgSoft.KBGit
 					context.Response.Close();
 				}
 			}
-		}
-	}
-
-	/// <summary>
-	/// Mini clone of git
-	/// Supports
-	/// * commits
-	/// * branches
-	/// * detached heads
-	/// * checkout old commits
-	/// * logging
-	/// </summary>
-	public class KBGit
-	{
-		public const string KBGitFolderName = ".git";
-		public string CodeFolder { get; }
-		public Storage Hd;
-
-		public KBGit(string startpath)
-		{
-			CodeFolder = startpath;
-			// Path.Combine(CodeFolder, KBGitFolderName, Datafile);
-		}
-
-		/// <summary>
-		/// Initialize a repo. eg. "git init"
-		/// </summary>
-		public void Init()
-		{
-			Hd = new Storage();
-			CheckOut_b("master", null);
-		}
-
-		/// <summary> Create a branch: e.g "git checkout -b foo" </summary>
-		public void CheckOut_b(string name) => CheckOut_b(name, Hd.Head.GetId(Hd));
-
-		/// <summary> Create a branch: e.g "git checkout -b foo fb1234.."</summary>
-		public void CheckOut_b(string name, Id position)
-		{
-			Hd.Branches.Add(name, new Branch(position, position));
-			ResetCodeFolder(position);
-			Hd.Head.Update(name, Hd);
-		}
-
-		/// <summary>
-		/// Simulate syntax: e.g. "HEAD~2"
-		/// </summary>
-		public Id HeadRef(int numberOfPredecessors)
-		{
-			var result = Hd.Head.GetId(Hd);
-			for (int i = 0; i < numberOfPredecessors; i++)
-			{
-				result = Hd.Commits[result].Parents.First();
-			}
-
-			return result;
-		}
-
-		/// <summary>
-		/// Equivalent to "git hash-object -w <file>"
-		/// </summary>
-		public Id HashObject(string content) => Id.HashObject(content);
-
-		public Id Commit(string message, string author, DateTime now)
-		{
-			var composite = FileSystemScanFolder(CodeFolder);
-			composite.Visit(x =>
-			{
-				if (x is TreeTreeLine t)
-					Hd.Trees.TryAdd(t.Id, t.Tree);
-				if (x is BlobTreeLine b)
-					Hd.Blobs.TryAdd(b.Id, b.Blob);
-			});
-
-			var parentCommitId = Hd.Head.GetId(Hd);
-			var isFirstCommit = parentCommitId == null;
-			var commit = new CommitNode
-			{
-				Time = now,
-				Tree = composite.Tree,
-				TreeId = composite.Id,
-				Author = author,
-				Message = message,
-				Parents = isFirstCommit ? new Id[0] : new[] { parentCommitId },
-			};
-
-			var commitId = Id.HashObject(commit);
-			Hd.Commits.Add(commitId, commit);
-
-			if (Hd.Head.IsDetachedHead())
-				Hd.Head.Update(commitId, Hd);
-			else
-				Hd.Branches[Hd.Head.Branch].Tip = commitId;
-
-			return commitId;
-		}
-
-		public Id Commit(string message, string author, DateTime now, params Fileinfo[] fileinfo)
-		{
-			var blobsInCommit = fileinfo.Select(x => new
-			{
-				file = x,
-				blobid = new Id(ByteHelper.ComputeSha(x.Content)),
-				blob = new BlobNode(x.Content)
-			}).ToArray();
-
-			var treeNode = new TreeNode(blobsInCommit.Select(x => new BlobTreeLine(x.blobid, x.blob, x.file.Path)).ToArray());
-			var treeNodeId = Id.HashObject(treeNode);
-
-			var parentCommitId = Hd.Head.GetId(Hd);
-			var isFirstCommit = parentCommitId == null;
-			var commit = new CommitNode
-			{
-				Time = now,
-				Tree = treeNode,
-				TreeId = treeNodeId,
-				Author = author,
-				Message = message,
-				Parents = isFirstCommit ? new Id[0] : new[] {parentCommitId},
-			};
-
-			if(!Hd.Trees.ContainsKey(treeNodeId))
-				Hd.Trees.Add(treeNodeId, treeNode);
-
-			foreach (var blob in blobsInCommit.Where(x => !Hd.Blobs.ContainsKey(x.blobid)))
-			{
-				Hd.Blobs.Add(blob.blobid, blob.blob);
-			}
-
-			var commitId = Id.HashObject(commit);
-			Hd.Commits.Add(commitId, commit);
-
-			if (Hd.Head.IsDetachedHead())
-				Hd.Head.Update(commitId, Hd);
-			else
-				Hd.Branches[Hd.Head.Branch].Tip = commitId;
-
-			return commitId;
-		}
-
-		void ResetCodeFolder(Id position)
-		{
-			if (Directory.Exists(CodeFolder))
-				Directory.Delete(CodeFolder, true);
-			Directory.CreateDirectory(CodeFolder);
-
-			if (position != null)
-			{
-				var commit = Hd.Commits[position];
-				foreach (BlobTreeLine line in commit.Tree.Lines)
-				{
-					File.WriteAllText(Path.Combine(CodeFolder, line.Path), line.Blob.Content);
-				}
-			}
-		}
-
-		internal void AddOrSetBranch(string branch, Branch branchInfo)
-		{
-			if (Hd.Branches.ContainsKey(branch))
-				Hd.Branches[branch].Tip = branchInfo.Tip;
-			else
-				Hd.Branches.Add(branch, branchInfo);
-		}
-
-		/// <summary>
-		/// Delete a branch. eg. "git branch -D name"
-		/// </summary>
-		public void Branch_D(string branch) => Hd.Branches.Remove(branch);
-
-		/// <summary>
-		/// Change HEAD to branch,e.g. "git checkout featurebranch"
-		/// </summary>
-		public void Checkout(string branch) => Checkout(Hd.Branches[branch].Tip);
-
-		/// <summary>
-		/// Change folder content to commit position and move HEAD 
-		/// </summary>
-		public void Checkout(Id id)
-		{
-			ResetCodeFolder(id);
-			Hd.Head.Update(id, Hd);
-		}
-
-		/// <summary>
-		/// eg. "git log"
-		/// </summary>
-		public string Log()
-		{
-			var sb = new StringBuilder();
-			foreach (var branch in Hd.Branches)
-			{
-				sb.AppendLine($"Log for {branch.Key}");
-
-				if (branch.Value.Tip == null) // empty repo
-					continue;
-
-				var nodes = GetReachableNodes(branch.Value.Tip);
-				foreach (var comit in nodes.OrderByDescending(x => x.Value.Time))
-				{
-					var commitnode = comit.Value;
-					var key = comit.Key.ToString().Substring(0, 7);
-					var msg = commitnode.Message.Substring(0, Math.Min(40, commitnode.Message.Length));
-					var author = $"{commitnode.Author}";
-
-					sb.AppendLine($"* {key} - {msg} ({commitnode.Time:yyyy/MM/dd hh\\:mm\\:ss}) <{author}> ");
-				}
-			}
-
-			return sb.ToString();
-		}
-
-		/// <summary>
-		/// Clean out unreferences nodes. Equivalent to "git gc"
-		/// </summary>
-		public void Gc()
-		{
-			var reachables = Hd.Branches.Select(x => x.Value.Tip)
-				.Union(new[] {Hd.Head.GetId(Hd)})
-				.SelectMany(x => GetReachableNodes(x))
-				.Select(x => x.Key);
-
-			var deletes = Hd.Commits.Select(x => x.Key)
-				.Except(reachables);
-
-			foreach (var delete in deletes)
-			{
-				Hd.Commits.Remove(delete);
-			}
-		}
-
-		internal void RawImportCommits(KeyValuePair<Id, CommitNode>[] commits, string branch, Branch branchInfo)
-		{
-			Console.WriteLine("RawImportCommits");
-			foreach (var commit in commits)
-			{
-				Console.WriteLine("import c"+commit.Key);
-				Hd.Commits.TryAdd(commit.Key, commit.Value);
-				Hd.Trees.TryAdd(commit.Value.TreeId, commit.Value.Tree);
-
-				foreach (var treeLine in commit.Value.Tree.Lines)
-				{
-					if (treeLine is BlobTreeLine b)
-					{
-						Console.WriteLine("import b "+b.Id);
-						Hd.Blobs.TryAdd(b.Id, b.Blob);
-					}
-
-					if (treeLine is TreeTreeLine t)
-					{
-						Console.WriteLine("import t "+t.Id);
-						Hd.Trees.TryAdd(t.Id, t.Tree);
-					}
-				}
-			}
-
-			AddOrSetBranch(branch, branchInfo);
-		}
-
-		public Fileinfo[] ScanFileSystem()
-		{
-			return new DirectoryInfo(CodeFolder).EnumerateFiles("*", SearchOption.AllDirectories)
-				.Select(x => new Fileinfo(x.FullName.Substring(CodeFolder.Length), File.ReadAllText(x.FullName)))
-				.ToArray();
-		}
-
-		public List<KeyValuePair<Id, CommitNode>> GetReachableNodes(Id id)
-		{
-			var result = new List<KeyValuePair<Id, CommitNode>>();
-			GetReachableNodes(id);
-
-			void GetReachableNodes(Id currentId)
-			{
-				var commit = Hd.Commits[currentId];
-				result.Add(new KeyValuePair<Id, CommitNode>(currentId, commit));
-
-				foreach (var parent in commit.Parents)
-				{
-					GetReachableNodes(parent);
-				}
-			}
-
-			return result;
-		}
-
-		public TreeTreeLine FileSystemScanFolder(string path) => MakeTreeTreeLine(path);
-
-		public ITreeLine[] FileSystemScanSubFolder(string path)
-		{
-			var entries = new DirectoryInfo(path).EnumerateFileSystemInfos("*", SearchOption.TopDirectoryOnly).ToArray();
-
-			var tree = new List<ITreeLine>();
-
-			tree.AddRange(entries.OfType<FileInfo>()
-				.Select(x => new {Content = File.ReadAllText(x.FullName), x.FullName})
-				.Select(x => new BlobTreeLine(new Id(ByteHelper.ComputeSha(x.Content)), new BlobNode(x.Content), x.FullName.Substring(CodeFolder.Length))));
-
-			tree.AddRange(entries.OfType<DirectoryInfo>()
-				.Where(x => !x.FullName.EndsWith(KBGitFolderName))
-				.Select(x => MakeTreeTreeLine(x.FullName)));
-
-			return tree.ToArray();
-		}
-
-		private TreeTreeLine MakeTreeTreeLine(string path)
-		{
-			var folderentries = FileSystemScanSubFolder(path);
-			var treenode = new TreeNode(folderentries);
-			var id = Id.HashObject(folderentries);
-
-			return new TreeTreeLine(id, treenode, path.Substring(CodeFolder.Length));
-		}
-
-		/// <summary>
-		/// return all branches and highlight current branch: "git branch"
-		/// </summary>
-		public string Branch()
-		{
-			var branched = Hd.Branches
-				.OrderBy(x => x.Key)
-				.Select(x => $"{(Hd.Head.Branch == x.Key ? "*" : " ")} {x.Key}");
-
-			var detached = Hd.Head.IsDetachedHead() ? $"* (HEAD detached at {Hd.Head.Id.ToString().Substring(0, 7)})\r\n" : "";
-
-			return detached + string.Join("\r\n", branched);
 		}
 	}
 }
