@@ -199,12 +199,12 @@ namespace KbgSoft.KBGit
 			var sb = new StringBuilder();
 			foreach (var branch in Hd.Branches)
 			{
-				sb.AppendLine($"Log for {branch.Key}");
+				sb.AppendLine($"\r\nLog for {branch.Key}");
 
 				if (branch.Value.Tip == null) // empty repo
 					continue;
 
-				var nodes = GetReachableNodes(branch.Value.Tip);
+				var nodes = GetReachableNodes(branch.Value.Tip, branch.Value.Created);
 				foreach (var comit in nodes.OrderByDescending(x => x.Value.Time))
 				{
 					var commitnode = comit.Value;
@@ -273,17 +273,17 @@ namespace KbgSoft.KBGit
 				.ToArray();
 		}
 
-		public List<KeyValuePair<Id, CommitNode>> GetReachableNodes(Id id)
+		public List<KeyValuePair<Id, CommitNode>> GetReachableNodes(Id from, Id downTo = null)
 		{
 			var result = new List<KeyValuePair<Id, CommitNode>>();
-			GetReachableNodes(id);
+			GetReachableNodes(from);
 
 			void GetReachableNodes(Id currentId)
 			{
 				var commit = Hd.Commits[currentId];
 				result.Add(new KeyValuePair<Id, CommitNode>(currentId, commit));
 
-				foreach (var parent in commit.Parents)
+				foreach (var parent in commit.Parents.Where(x => !x.Equals(downTo)))
 				{
 					GetReachableNodes(parent);
 				}
@@ -351,7 +351,7 @@ namespace KbgSoft.KBGit
 			}
 		}
 
-		public static T Deserialize<T>(Stream s) where T : class => (T) new BinaryFormatter().Deserialize(s);
+		public static T Deserialize<T>(Stream s) where T : class => (T)new BinaryFormatter().Deserialize(s);
 
 		public static T Deserialize<T>(byte[] o) where T : class
 		{

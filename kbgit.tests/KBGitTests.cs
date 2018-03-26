@@ -42,7 +42,7 @@ namespace kbgit.tests
 
 		    var id = git.Commit("headless commit", "a", new DateTime(2010, 11, 12), git.ScanFileSystem());
 
-			Assert.Equal("48a24325bf46e633d025dbb88167e0ba867213d9c61f7ab7cb24b2af15450c00", id.ToString());
+			Assert.Equal("2ef282b36b6b71420c33b234ca74c4f185dc88948f6cbfa6164d01c5b2993448", id.ToString());
 	    }
 
 	    [Fact]
@@ -245,7 +245,8 @@ visitblob FeatureVolvo\car.txt
 		{
 			var repoBuilder = new RepoBuilder().EmptyRepo();
 
-			Assert.Equal(@"Log for master
+			Assert.Equal(@"
+Log for master
 ", repoBuilder.Git.Log());
 		}
 
@@ -258,7 +259,8 @@ visitblob FeatureVolvo\car.txt
 
 			repoBuilder.Git.Commit("Add a.txt", "kasper graversen", new DateTime(2018, 3, 1, 12, 22, 33));
 
-			Assert.Equal(@"Log for master
+			Assert.Equal(@"
+Log for master
 * 06cd57d - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
 ", repoBuilder.Git.Log());
 		}
@@ -273,7 +275,8 @@ visitblob FeatureVolvo\car.txt
 			repoBuilder.AddFile("a.txt", "changed a...");
 			repoBuilder.Git.Commit("Changed a.txt", "kasper graversen", new DateTime(2018, 3, 2, 13, 24, 34));
 
-			Assert.Equal(@"Log for master
+			Assert.Equal(@"
+Log for master
 * dd30447 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
 * 06cd57d - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
 ", repoBuilder.Git.Log());
@@ -293,13 +296,13 @@ visitblob FeatureVolvo\car.txt
 				.AddFile("a.txt", "speedup!")
 				.Git.Commit("Speedup a.txt", "kasper graversen", new DateTime(2018, 4, 3, 15, 26, 37));
 
-			Assert.Equal(@"Log for master
+			Assert.Equal(@"
+Log for master
 * dd30447 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
 * 06cd57d - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
+
 Log for feature/speed
 * fafcd20 - Speedup a.txt (2018/04/03 03:26:37) <kasper graversen> 
-* dd30447 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
-* 06cd57d - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
 ", repoBuilder.Git.Log());
 		}
 
@@ -404,7 +407,9 @@ Log for feature/speed
 
 			new GitNetworkClient().PullBranch(localGit.Hd.Remotes.First(), "master", localGit);
 
-			Assert.Equal(@"Log for master
+			Assert.Equal(@"
+Log for master
+
 Log for origin/master
 * d2c19da - Add a2 (2017/03/03 03:03:03) <kasper> 
 * 5b65531 - Add b (2017/02/02 02:02:02) <kasper> 
@@ -426,7 +431,8 @@ Log for origin/master
 			var commits = localGit.GetReachableNodes(branch.Tip).ToArray();
 			new GitNetworkClient().PushBranch(localGit.Hd.Remotes.First(), "master", branch, null, commits);
 
-			Assert.Equal(@"Log for master
+			Assert.Equal(@"
+Log for master
 * d2c19da - Add a2 (2017/03/03 03:03:03) <kasper> 
 * 5b65531 - Add b (2017/02/02 02:02:02) <kasper> 
 * 27047ec - Add a (2017/01/01 01:01:01) <kasper> 
