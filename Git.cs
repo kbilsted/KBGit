@@ -25,7 +25,7 @@ namespace KbgSoft.KBGit
 		public const string KBGitFolderName = ".git";
 		public string CodeFolder { get; }
 		public Storage Hd;
-
+		public RemotesHandling Remotes;
 		public KBGit(string startpath)
 		{
 			CodeFolder = startpath;
@@ -39,6 +39,7 @@ namespace KbgSoft.KBGit
 		{
 			Hd = new Storage();
 			CheckOut_b("master", null);
+			Remotes = new RemotesHandling(Hd.Remotes);
 		}
 
 		/// <summary> Create a branch: e.g "git checkout -b foo" </summary>
@@ -212,7 +213,7 @@ namespace KbgSoft.KBGit
 					var msg = commitnode.Message.Substring(0, Math.Min(40, commitnode.Message.Length));
 					var author = $"{commitnode.Author}";
 
-					sb.AppendLine($"* {key} - {msg} ({commitnode.Time:yyyy/MM/dd hh\\:mm\\:ss}) <{author}> ");
+					sb.AppendLine($"* {key} - {msg} ({commitnode.Time:yyyy\\/MM\\/dd hh\\:mm\\:ss}) <{author}> ");
 				}
 			}
 
@@ -335,6 +336,50 @@ namespace KbgSoft.KBGit
 		}
 	}
 
+	public class GrammarLine
+	{
+		public readonly string Explanation;
+		public readonly string[] Grammar;
+		public readonly Func<KBGit, string[], string> ActionOnMatch;
+
+		public GrammarLine(string explanation, string[] grammar, Action<KBGit, string[]> actionOnMatch) : this(explanation, grammar, (git, arg) => { actionOnMatch(git, arg); return null; })
+		{}
+
+		public GrammarLine(string explanation, string[] grammar, Func<KBGit, string[], string> actionOnMatch)
+		{
+			Explanation = explanation; Grammar = grammar; ActionOnMatch = actionOnMatch;
+		}
+	}
+
+	public class CommandlineHandling
+	{
+		public static GrammarLine[] Config = 
+		{
+			new GrammarLine("Initialize an empty repo", new[] { "init"}, (git, args) => { git.Init(); }),
+			new GrammarLine("Make a commit", new[] { "commit", "-m", "<message>"}, (git, args) => { git.Commit(args[2], "author", DateTime.Now, git.ScanFileSystem()); }),
+			new GrammarLine("Show the commit log", new[] { "log"}, (git, args) => git.Log()),
+			new GrammarLine("Create a new new branch at HEAD", new[] { "checkout", "-b", "<branchname>"}, (git, args) => { git.CheckOut_b(args[2]); }),
+			new GrammarLine("Create a new new branch at commit id", new[] { "checkout", "-b", "<branchname>", "<id>"}, (git, args) => { git.CheckOut_b(args[2], new Id(args[3])); }),
+			new GrammarLine("Update HEAD", new[] { "checkout", "<id>"}, (git, args) => { git.Checkout(new Id(args[1])); }),
+			new GrammarLine("Delete a branch", new[] { "branch", "-D", "<branchname>"}, (git, args) => { git.Branch_D(args[2]); }),
+			new GrammarLine("List existing branches", new[] { "branch"}, (git, args) => { git.Branch(); }),
+			new GrammarLine("Garbage collect", new[] { "gc" }, (git, args) => { git.Gc(); }),
+			new GrammarLine("Start git as a server", new[] { "daemon", "<port>" }, (git, args) => { new GitServer(git).StartDaemon(int.Parse(args[1])); }),
+			new GrammarLine("Pull code", new[] { "pull", "<remote-name>", "<branch>"}, (git, args) => { new GitNetworkClient().PullBranch(git.Hd.Remotes.First(x => x.Name == args[1]), args[2], git);}),
+			new GrammarLine("Push code", new[] { "push", "<remote-name>", "<branch>"}, (git, args) => { new GitNetworkClient().PushBranch(git.Hd.Remotes.First(x => x.Name == args[1]), args[2], git.Hd.Branches[args[2]], null, git.GetReachableNodes(git.Hd.Branches[args[2]].Tip).ToArray()); }),
+		};
+
+		public string Handle(KBGit git, GrammarLine[] config, string[] cmdParams)
+		{
+			var match = config.SingleOrDefault(x => x.Grammar.Length == cmdParams.Length 
+												 && x.Grammar.Zip(cmdParams, (gramar, arg) => gramar.StartsWith("<") || gramar == arg).All(m => m));
+
+			return match == null 
+				? $"KBGit Help\r\n----------\r\ngit {string.Join("\r\ngit ", config.Select(x => $"{string.Join(" ", x.Grammar),-34} - {x.Explanation}."))}" 
+				: match.ActionOnMatch(git, cmdParams);
+		}
+	}
+
 	public static class ByteHelper
 	{
 		static readonly SHA256 Sha = SHA256.Create();
@@ -420,16 +465,43 @@ namespace KbgSoft.KBGit
 		}
 	}
 
+	[Serializable]
 	public class Remote
 	{
 		public string Name;
 		public Uri Url;
 	}
 
+	public class RemotesHandling
+	{
+		List<Remote> Remotes;
+
+		public RemotesHandling(List<Remote> remotes)
+		{
+			Remotes = remotes;
+		}
+
+		/// <summary>
+		/// List remotes Git remote -v
+		/// </summary>
+		public string List() => string.Join("\r\n", Remotes.Select(x => $"{x.Name,-12} {x.Url}"));
+
+		/// <summary>
+		/// Add a remote
+		/// </summary>
+		public void Add(Remote r) => Remotes.Add(r);
+
+		/// <summary>
+		/// Remove a remote
+		/// </summary>
+		public void Remove(Remote r) => Remotes = Remotes.Where(x => x.Name != r.Name).ToList();
+	}
+
 	/// <summary>
 	/// In git the file content of the file "HEAD" is either an ID or a reference to a branch.eg.
 	/// "ref: refs/heads/master"
 	/// </summary>
+	[Serializable]
 	public class Head
 	{
 		public Id Id { get; private set; }
@@ -601,11 +673,12 @@ namespace KbgSoft.KBGit
 			listener?.Abort();
 		}
 
-		public void Serve(int port)
+		public void StartDaemon(int port)
 		{
+			Console.WriteLine($"Serving on http://localhost:{port}/");
+
 			listener = new HttpListener();
 			listener.Prefixes.Add($"http://localhost:{port}/");
-			Console.WriteLine($"Serving on http://localhost:{port}/");
 			listener.Start();
 
 			Running = true;

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -108,7 +107,7 @@ blob FeatureVolvo\door.txt", files);
 		[Fact]
 		public void Get_folders_and_files()
 	    {
-		    var repoBuilder = new RepoBuilder(@"c:\temp\");
+		    repoBuilder = new RepoBuilder(@"c:\temp\");
 		    var git = repoBuilder.BuildEmptyRepo();
 		    repoBuilder.AddFile(@"FeatureVolvo\car.txt", "car");
 		    repoBuilder.AddFile(@"FeatureGarden\tree.txt", "tree");
@@ -238,8 +237,6 @@ visitblob FeatureVolvo\car.txt
 
 	public class LogTests
 	{
-
-
 		[Fact]
 		public void When_empty_repo_Then_log_returns_empty()
 		{
@@ -305,7 +302,6 @@ Log for feature/speed
 * fafcd20 - Speedup a.txt (2018/04/03 03:26:37) <kasper graversen> 
 ", repoBuilder.Git.Log());
 		}
-
 	}
 
 	public class GitCommitTests
@@ -444,7 +440,7 @@ Log for master
 		GitServer SpinUpServer(KBGit git, int port)
 		{
 			var server = new GitServer(git);
-			t = new TaskFactory().StartNew(() => server.Serve(port));
+			t = new TaskFactory().StartNew(() => server.StartDaemon(port));
 
 			while (!server.Running.HasValue)
 				Thread.Sleep(50);
@@ -452,4 +448,129 @@ Log for master
 			return server;
 		}
 	}
+
+	public class CommandHandlingTests
+	{
+		bool logWasMatched = false;
+		bool commitWasMatched = false;
+		readonly RepoBuilder repoBuilder = new RepoBuilder();
+
+		GrammarLine[] GetTestConfigurationStub() => new[]
+			{
+				new GrammarLine("make log", new[] {"log"}, (git, args) => { logWasMatched = true; }),
+				new GrammarLine("make commit", new[] {"commit", "<message>"}, (git, args) => { commitWasMatched = true; }),
+			};
+
+		[Fact]
+		public void When_printhelp_Then_all_commands_are_explained()
+		{
+			var helpText = new CommandlineHandling().Handle(null, CommandlineHandling.Config, new[]{"unmatched","parameters"});
+
+			Assert.Equal(
+@"KBGit Help
+----------
+git init                               - Initialize an empty repo.
+git commit -m <message>                - Make a commit.
+git log                                - Show the commit log.
+git checkout -b <branchname>           - Create a new new branch at HEAD.
+git checkout -b <branchname> <id>      - Create a new new branch at commit id.
+git checkout <id>                      - Update HEAD.
+git branch -D <branchname>             - Delete a branch.
+git branch                             - List existing branches.
+git gc                                 - Garbage collect.
+git daemon <port>                      - Start git as a server.
+git pull <remote-name> <branch>        - Pull code.
+git push <remote-name> <branch>        - Push code.", helpText);
+		}
+
+		[Fact]
+		public void When_calling_with_specific_arguments_Then_match()
+		{
+			new CommandlineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] { "log" });
+
+			Assert.True(logWasMatched);
+			Assert.False(commitWasMatched);
+		}
+
+		[Fact]
+		public void When_not_calling_with_unrecognized_arguments_Then_not_match()
+		{
+			new CommandlineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] {"NOTLOG"});
+
+			Assert.False(logWasMatched);
+			Assert.False(commitWasMatched);
+		}
+
+		[Fact]
+		public void When_calling_with_too_few_arguments_Then_not_match()
+		{
+			new CommandlineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] { "git" });
+
+			Assert.False(logWasMatched);
+			Assert.False(commitWasMatched);
+		}
+
+		[Fact]
+		public void When_calling_with_too_many_arguments_Then_not_match()
+		{
+			new CommandlineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] { "log", "too", "many", "args" });
+
+			Assert.False(logWasMatched);
+			Assert.False(commitWasMatched);
+		}
+
+		[Fact]
+		public void When_calling_with_specific_argumenthole_Then_match()
+		{
+			new CommandlineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] { "commit", "some message"});
+
+			Assert.False(logWasMatched);
+			Assert.True(commitWasMatched);
+		}
+
+		[Fact]
+		public void When_not_calling_with_specific_argumenthole_Then_not_match()
+		{
+			new CommandlineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] { "commit" });
+
+			Assert.False(logWasMatched);
+			Assert.False(commitWasMatched);
+		}
+	}
+
+    public class RemotesTest
+    {
+        private RepoBuilder repoBuilder = new RepoBuilder();
+
+        [Fact]
+        public void Given_no_remotes_When_listing_Then_return_empty()
+        {
+            Assert.Equal("", repoBuilder.BuildEmptyRepo().Remotes.List());
+        }
+
+        [Fact]
+        public void When_adding_remotes_Then_listing_shows_them()
+        {
+            var git = repoBuilder.BuildEmptyRepo();
+            git.Remotes.Add(new Remote(){Name = "origin", Url = new Uri("https://kbgit.world:8080")});
+            git.Remotes.Add(new Remote(){Name = "ghulu", Url = new Uri("https://Ghu.lu:8080")});
+
+            Assert.Equal(
+@"origin       https://kbgit.world:8080/
+ghulu        https://ghu.lu:8080/", git.Remotes.List());
+        }
+
+        [Fact]
+        public void When_removing_remotes_Then_listing_does_not_show_them()
+        {
+            var git = repoBuilder.BuildEmptyRepo();
+            var origin = new Remote() { Name = "origin", Url = new Uri("https://kbgit.world:8080") };
+            git.Remotes.Add(origin);
+            git.Remotes.Add(new Remote() { Name = "ghulu", Url = new Uri("https://Ghu.lu:8080") });
+            git.Remotes.Remove(origin);
+
+            Assert.Equal(@"ghulu        https://ghu.lu:8080/", git.Remotes.List());
+        }
+
+    }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 
 namespace KbgSoft.KBGit {
@@ -13,9 +14,20 @@ namespace KbgSoft.KBGit {
 			Console.ForegroundColor = f;
 		}
 
-		public static void Main() {
-			var git = new KBGit(@"c:\temp\kbgit\");
+		public static void Main(string[] args)
+		{
+			Console.WriteLine("**: "+args.Length);
+			Console.WriteLine(string.Join("\n***: ", args));
+
+			var path = @"c:\temp\kbgit\129837921734298\";
+			if (Directory.Exists(path))
+				Directory.Delete(path, true);
+			Directory.CreateDirectory(path);
+			
+			//Call(@"c:\temp\kbgit\129837921734298\");
+			var git = new KBGit("");
 			git.Init();
+			//git.CommandLineHandling("init");
 			File.WriteAllText(git.CodeFolder + "file.txt", "Hello world");
 			git.Commit("Adding note", "kasper", DateTime.Now, git.ScanFileSystem());
 			Console.WriteLine(git.Log());
@@ -47,5 +59,22 @@ namespace KbgSoft.KBGit {
 			git.Checkout("master");
 			WaitKey();
 		}
+
+		public static void Call(string workingDirectory)
+		{
+			using (System.Diagnostics.Process pProcess = new System.Diagnostics.Process())
+			{
+				pProcess.StartInfo.WorkingDirectory = workingDirectory;
+				pProcess.StartInfo.FileName = @"C:\src\KBGit\obj\netcoreapp2.0\win-x64\host\KBGit.exe";
+				pProcess.StartInfo.Arguments = @"init"; 
+				pProcess.StartInfo.UseShellExecute = true;
+				pProcess.StartInfo.RedirectStandardOutput = false;
+				pProcess.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Normal;
+				pProcess.StartInfo.CreateNoWindow = false; //not diplay a windows
+				pProcess.Start();
+				pProcess.WaitForExit();
+			}
+		}
+
 	}
 }

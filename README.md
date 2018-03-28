@@ -1,7 +1,7 @@
 # KBGit - Git implemented from scratch in 500 lines of code (or less ...)
 
 Project statistics:  <!--start-->
-[![Stats](https://img.shields.io/badge/Code_lines-338-ff69b4.svg)]()
+[![Stats](https://img.shields.io/badge/Code_lines-366-ff69b4.svg)]()
 [![Stats](https://img.shields.io/badge/Doc_lines-22-ff69b4.svg)]()
 <!--end-->
 
@@ -51,7 +51,10 @@ KBGit..what?? My initials are *K.B.G.* - hence the name KBGit :-)
  * store git state on disk 
  * command line parser
  * clone
+ * diff'er to show changes to files - and select changes...
 
 
 I will blog about the implementation on [http://firstclassthoughts.co.uk/](http://firstclassthoughts.co.uk/) 
 when the implementation has stabilized. Comments etc. are much welcommed.
+
+For now the reading guide is to just read the `Git.cs` file. The first class is `KBGit` and it implements the main functionalities of Git. Just browse around with outset in that class.
