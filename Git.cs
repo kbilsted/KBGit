@@ -231,20 +231,18 @@ namespace KbgSoft.KBGit
 				.Select(x => x.Key);
 
 			var deletes = Hd.Commits.Select(x => x.Key)
-				.Except(reachables);
+				.Except(reachables).ToList();
 
-			foreach (var delete in deletes)
-			{
-				Hd.Commits.Remove(delete);
-			}
+			deletes.ForEach(x => Hd.Commits.Remove(x));
 		}
 
 		internal void RawImportCommits(KeyValuePair<Id, CommitNode>[] commits, string branch, Branch branchInfo)
 		{
-			Console.WriteLine("RawImportCommits");
+			//Console.WriteLine("RawImportCommits");
+
 			foreach (var commit in commits)
 			{
-				Console.WriteLine("import c" + commit.Key);
+				//Console.WriteLine("import c" + commit.Key);
 				Hd.Commits.TryAdd(commit.Key, commit.Value);
 				Hd.Trees.TryAdd(commit.Value.TreeId, commit.Value.Tree);
 
@@ -252,13 +250,13 @@ namespace KbgSoft.KBGit
 				{
 					if (treeLine is BlobTreeLine b)
 					{
-						Console.WriteLine("import b " + b.Id);
+						//Console.WriteLine("import b " + b.Id);
 						Hd.Blobs.TryAdd(b.Id, b.Blob);
 					}
 
 					if (treeLine is TreeTreeLine t)
 					{
-						Console.WriteLine("import t " + t.Id);
+						//Console.WriteLine("import t " + t.Id);
 						Hd.Trees.TryAdd(t.Id, t.Tree);
 					}
 				}
@@ -353,7 +351,7 @@ namespace KbgSoft.KBGit
 
 	public class CommandlineHandling
 	{
-		public static GrammarLine[] Config = 
+		public static readonly GrammarLine[] Config = 
 		{
 			new GrammarLine("Initialize an empty repo", new[] { "init"}, (git, args) => { git.Init(); }),
 			new GrammarLine("Make a commit", new[] { "commit", "-m", "<message>"}, (git, args) => { git.Commit(args[2], "author", DateTime.Now, git.ScanFileSystem()); }),

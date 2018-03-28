@@ -1,8 +1,8 @@
 # KBGit - Git implemented from scratch in 500 lines of code (or less ...)
 
 Project statistics:  <!--start-->
-[![Stats](https://img.shields.io/badge/Code_lines-366-ff69b4.svg)]()
-[![Stats](https://img.shields.io/badge/Doc_lines-22-ff69b4.svg)]()
+[![Stats](https://img.shields.io/badge/Code_lines-372-ff69b4.svg)]()
+[![Stats](https://img.shields.io/badge/Doc_lines-25-ff69b4.svg)]()
 <!--end-->
 
 Recently I dug into their implementation details of Git. The simplicity of the implementation was completely mind-boggling. 
