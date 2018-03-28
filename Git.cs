@@ -213,7 +213,7 @@ namespace KbgSoft.KBGit
 					var msg = commitnode.Message.Substring(0, Math.Min(40, commitnode.Message.Length));
 					var author = $"{commitnode.Author}";
 
-					sb.AppendLine($"* {key} - {msg} ({commitnode.Time:yyyy/MM/dd hh\\:mm\\:ss}) <{author}> ");
+					sb.AppendLine($"* {key} - {msg} ({commitnode.Time:yyyy\\/MM\\/dd hh\\:mm\\:ss}) <{author}> ");
 				}
 			}
 
