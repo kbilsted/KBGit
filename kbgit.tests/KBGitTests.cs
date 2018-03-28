@@ -537,4 +537,40 @@ git push <remote-name> <branch>        - Push code.", helpText);
 			Assert.False(commitWasMatched);
 		}
 	}
+
+    public class RemotesTest
+    {
+        private RepoBuilder repoBuilder = new RepoBuilder();
+
+        [Fact]
+        public void Given_no_remotes_When_listing_Then_return_empty()
+        {
+            Assert.Equal("", repoBuilder.BuildEmptyRepo().Remotes.List());
+        }
+
+        [Fact]
+        public void When_adding_remotes_Then_listing_shows_them()
+        {
+            var git = repoBuilder.BuildEmptyRepo();
+            git.Remotes.Add(new Remote(){Name = "origin", Url = new Uri("https://kbgit.world:8080")});
+            git.Remotes.Add(new Remote(){Name = "ghulu", Url = new Uri("https://Ghu.lu:8080")});
+
+            Assert.Equal(
+@"origin       https://kbgit.world:8080/
+ghulu        https://ghu.lu:8080/", git.Remotes.List());
+        }
+
+        [Fact]
+        public void When_removing_remotes_Then_listing_does_not_show_them()
+        {
+            var git = repoBuilder.BuildEmptyRepo();
+            var origin = new Remote() { Name = "origin", Url = new Uri("https://kbgit.world:8080") };
+            git.Remotes.Add(origin);
+            git.Remotes.Add(new Remote() { Name = "ghulu", Url = new Uri("https://Ghu.lu:8080") });
+            git.Remotes.Remove(origin);
+
+            Assert.Equal(@"ghulu        https://ghu.lu:8080/", git.Remotes.List());
+        }
+
+    }
 }

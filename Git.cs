@@ -25,7 +25,7 @@ namespace KbgSoft.KBGit
 		public const string KBGitFolderName = ".git";
 		public string CodeFolder { get; }
 		public Storage Hd;
-
+		public RemotesHandling Remotes;
 		public KBGit(string startpath)
 		{
 			CodeFolder = startpath;
@@ -39,6 +39,7 @@ namespace KbgSoft.KBGit
 		{
 			Hd = new Storage();
 			CheckOut_b("master", null);
+			Remotes = new RemotesHandling(Hd.Remotes);
 		}
 
 		/// <summary> Create a branch: e.g "git checkout -b foo" </summary>
@@ -371,7 +372,7 @@ namespace KbgSoft.KBGit
 		public string Handle(KBGit git, GrammarLine[] config, string[] cmdParams)
 		{
 			var match = config.SingleOrDefault(x => x.Grammar.Length == cmdParams.Length 
-			                                     && x.Grammar.Zip(cmdParams, (gramar, arg) => gramar.StartsWith("<") || gramar == arg).All(m => m));
+												 && x.Grammar.Zip(cmdParams, (gramar, arg) => gramar.StartsWith("<") || gramar == arg).All(m => m));
 
 			return match == null 
 				? $"KBGit Help\r\n----------\r\ngit {string.Join("\r\ngit ", config.Select(x => $"{string.Join(" ", x.Grammar),-34} - {x.Explanation}."))}" 
@@ -464,16 +465,43 @@ namespace KbgSoft.KBGit
 		}
 	}
 
+	[Serializable]
 	public class Remote
 	{
 		public string Name;
 		public Uri Url;
 	}
 
+	public class RemotesHandling
+	{
+		List<Remote> Remotes;
+
+		public RemotesHandling(List<Remote> remotes)
+		{
+			Remotes = remotes;
+		}
+
+		/// <summary>
+		/// List remotes Git remote -v
+		/// </summary>
+		public string List() => string.Join("\r\n", Remotes.Select(x => $"{x.Name,-12} {x.Url}"));
+
+		/// <summary>
+		/// Add a remote
+		/// </summary>
+		public void Add(Remote r) => Remotes.Add(r);
+
+		/// <summary>
+		/// Remove a remote
+		/// </summary>
+		public void Remove(Remote r) => Remotes = Remotes.Where(x => x.Name != r.Name).ToList();
+	}
+
 	/// <summary>
 	/// In git the file content of the file "HEAD" is either an ID or a reference to a branch.eg.
 	/// "ref: refs/heads/master"
 	/// </summary>
+	[Serializable]
 	public class Head
 	{
 		public Id Id { get; private set; }
