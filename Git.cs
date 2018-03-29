@@ -10,6 +10,52 @@ using System.Text;
 
 namespace KbgSoft.KBGit
 {
+	public class GrammarLine
+	{
+		public readonly string Explanation;
+		public readonly string[] Grammar;
+		public readonly Func<KBGit, string[], string> ActionOnMatch;
+
+		public GrammarLine(string explanation, string[] grammar, Action<KBGit, string[]> actionOnMatch) : this(explanation, grammar, (git, arg) => { actionOnMatch(git, arg); return null; })
+		{ }
+
+		public GrammarLine(string explanation, string[] grammar, Func<KBGit, string[], string> actionOnMatch)
+		{
+			Explanation = explanation; Grammar = grammar; ActionOnMatch = actionOnMatch;
+		}
+	}
+
+	public class CommandLineHandling
+	{
+		public static readonly GrammarLine[] Config =
+		{
+			new GrammarLine("Initialize an empty repo", new[] { "init"}, (git, args) => git.InitializeRepository()),
+			new GrammarLine("Make a commit", new[] { "commit", "-m", "<message>"}, (git, args) => { git.Commit(args[2], "author", DateTime.Now, git.ScanFileSystem()); }),
+			new GrammarLine("Show the commit log", new[] { "log"}, (git, args) => git.Log()),
+			new GrammarLine("Create a new new branch at HEAD", new[] { "checkout", "-b", "<branchname>"}, (git, args) => git.Branches.CreateBranch(args[2])),
+			new GrammarLine("Create a new new branch at commit id", new[] { "checkout", "-b", "<branchname>", "<id>"}, (git, args) => git.Branches.CreateBranch(args[2], new Id(args[3]))),
+			new GrammarLine("Update HEAD", new[] { "checkout", "<id|name>"}, (git, args) => git.Hd.Branches.ContainsKey(args[1]) ? git.Branches.Checkout(args[1]) : git.Branches.Checkout(new Id(args[1]))),
+			new GrammarLine("Delete a branch", new[] { "branch", "-D", "<branchname>"}, (git, args) => git.Branches.DeleteBranch(args[2])),
+			new GrammarLine("List existing branches", new[] { "branch"}, (git, args) => git.Branches.ListBranches()),
+			new GrammarLine("Garbage collect", new[] { "gc" }, (git, args) => { git.Gc(); }),
+			new GrammarLine("Start git as a server", new[] { "daemon", "<port>" }, (git, args) => { new GitServer(git).StartDaemon(int.Parse(args[1])); }),
+			new GrammarLine("Pull code", new[] { "pull", "<remote-name>", "<branch>"}, (git, args) => { new GitNetworkClient().PullBranch(git.Hd.Remotes.First(x => x.Name == args[1]), args[2], git);}),
+			new GrammarLine("Push code", new[] { "push", "<remote-name>", "<branch>"}, (git, args) => { new GitNetworkClient().PushBranch(git.Hd.Remotes.First(x => x.Name == args[1]), args[2], git.Hd.Branches[args[2]], null, git.GetReachableNodes(git.Hd.Branches[args[2]].Tip).ToArray()); }),
+			new GrammarLine("List remotes", new[] { "remote", "-v"}, (git, args) => { git.Remotes.List(); }),
+			new GrammarLine("Add remote", new[] { "remote", "add", "<remote-name>", "<url>"}, (git, args) => { git.Remotes.Add(new Remote(){Name = args[2], Url = new Uri(args[3])}); }),
+			new GrammarLine("Remove remote", new[] { "remote", "rm", "<remote-name>"}, (git, args) => { git.Remotes.Remove(args[2]); }),
+		};
+
+		public string Handle(KBGit git, GrammarLine[] config, string[] cmdParams)
+		{
+			var match = config.SingleOrDefault(x => x.Grammar.Length == cmdParams.Length
+												 && x.Grammar.Zip(cmdParams, (gramar, arg) => gramar.StartsWith("<") || gramar == arg).All(m => m));
+
+			return match == null
+				? $"KBGit Help\r\n----------\r\ngit {string.Join("\r\ngit ", config.Select(x => $"{string.Join(" ", x.Grammar),-34} - {x.Explanation}."))}"
+				: match.ActionOnMatch(git, cmdParams);
+		}
+	}
 
 	/// <summary>
 	/// Mini clone of git
@@ -37,12 +83,14 @@ namespace KbgSoft.KBGit
 		/// <summary>
 		/// Initialize a repo. eg. "git init"
 		/// </summary>
-		public void InitializeRepository()
+		public string InitializeRepository()
 		{
 			Hd = new Storage();
 			Remotes = new RemotesHandling(Hd.Remotes);
 			Branches = new BranchHandling(Hd, CodeFolder);
 			Branches.CreateBranch("master", null);
+			return "Initialized empty Git repository";
+
 		}
 
 		/// <summary>
@@ -343,53 +391,6 @@ namespace KbgSoft.KBGit
 		{
 			Hd.ResetCodeFolder(codeFolder, id);
 			return Hd.Head.Update(id, Hd);
-		}
-	}
-
-	public class GrammarLine
-	{
-		public readonly string Explanation;
-		public readonly string[] Grammar;
-		public readonly Func<KBGit, string[], string> ActionOnMatch;
-
-		public GrammarLine(string explanation, string[] grammar, Action<KBGit, string[]> actionOnMatch) : this(explanation, grammar, (git, arg) => { actionOnMatch(git, arg); return null; })
-		{}
-
-		public GrammarLine(string explanation, string[] grammar, Func<KBGit, string[], string> actionOnMatch)
-		{
-			Explanation = explanation; Grammar = grammar; ActionOnMatch = actionOnMatch;
-		}
-	}
-
-	public class CommandlineHandling
-	{
-		public static readonly GrammarLine[] Config = 
-		{
-			new GrammarLine("Initialize an empty repo", new[] { "init"}, (git, args) => { git.InitializeRepository(); }),
-			new GrammarLine("Make a commit", new[] { "commit", "-m", "<message>"}, (git, args) => { git.Commit(args[2], "author", DateTime.Now, git.ScanFileSystem()); }),
-			new GrammarLine("Show the commit log", new[] { "log"}, (git, args) => git.Log()),
-			new GrammarLine("Create a new new branch at HEAD", new[] { "checkout", "-b", "<branchname>"}, (git, args) => git.Branches.CreateBranch(args[2])),
-			new GrammarLine("Create a new new branch at commit id", new[] { "checkout", "-b", "<branchname>", "<id>"}, (git, args) => git.Branches.CreateBranch(args[2], new Id(args[3]))),
-			new GrammarLine("Update HEAD", new[] { "checkout", "<id|name>"}, (git, args) => git.Hd.Branches.ContainsKey(args[1]) ? git.Branches.Checkout(args[1]) : git.Branches.Checkout(new Id(args[1]))),
-			new GrammarLine("Delete a branch", new[] { "branch", "-D", "<branchname>"}, (git, args) => git.Branches.DeleteBranch(args[2])),
-			new GrammarLine("List existing branches", new[] { "branch"}, (git, args) => git.Branches.ListBranches()),
-			new GrammarLine("Garbage collect", new[] { "gc" }, (git, args) => { git.Gc(); }),
-			new GrammarLine("Start git as a server", new[] { "daemon", "<port>" }, (git, args) => { new GitServer(git).StartDaemon(int.Parse(args[1])); }),
-			new GrammarLine("Pull code", new[] { "pull", "<remote-name>", "<branch>"}, (git, args) => { new GitNetworkClient().PullBranch(git.Hd.Remotes.First(x => x.Name == args[1]), args[2], git);}),
-			new GrammarLine("Push code", new[] { "push", "<remote-name>", "<branch>"}, (git, args) => { new GitNetworkClient().PushBranch(git.Hd.Remotes.First(x => x.Name == args[1]), args[2], git.Hd.Branches[args[2]], null, git.GetReachableNodes(git.Hd.Branches[args[2]].Tip).ToArray()); }),
-			new GrammarLine("List remotes", new[] { "remote", "-v"}, (git, args) => { git.Remotes.List(); }),
-			new GrammarLine("Add remote", new[] { "remote", "add", "<remote-name>", "<url>"}, (git, args) => { git.Remotes.Add(new Remote(){Name = args[2], Url = new Uri(args[3])}); }),
-			new GrammarLine("Remove remote", new[] { "remote", "rm", "<remote-name>"}, (git, args) => { git.Remotes.Remove(args[2]); }),
-		};
-
-		public string Handle(KBGit git, GrammarLine[] config, string[] cmdParams)
-		{
-			var match = config.SingleOrDefault(x => x.Grammar.Length == cmdParams.Length 
-												 && x.Grammar.Zip(cmdParams, (gramar, arg) => gramar.StartsWith("<") || gramar == arg).All(m => m));
-
-			return match == null 
-				? $"KBGit Help\r\n----------\r\ngit {string.Join("\r\ngit ", config.Select(x => $"{string.Join(" ", x.Grammar),-34} - {x.Explanation}."))}" 
-				: match.ActionOnMatch(git, cmdParams);
 		}
 	}
 

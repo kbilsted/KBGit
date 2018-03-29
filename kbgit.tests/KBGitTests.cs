@@ -492,7 +492,7 @@ Log for master
 		[Fact]
 		public void When_printhelp_Then_all_commands_are_explained()
 		{
-			var helpText = new CommandlineHandling().Handle(null, CommandlineHandling.Config, new[]{"unmatched","parameters"});
+			var helpText = new CommandLineHandling().Handle(null, CommandLineHandling.Config, new[]{"unmatched","parameters"});
 
 			Assert.Equal(
 @"KBGit Help
@@ -517,7 +517,7 @@ git remote rm <remote-name>            - Remove remote.", helpText);
 		[Fact]
 		public void When_calling_with_specific_arguments_Then_match()
 		{
-			new CommandlineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] { "log" });
+			new CommandLineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] { "log" });
 
 			Assert.True(logWasMatched);
 			Assert.False(commitWasMatched);
@@ -526,7 +526,7 @@ git remote rm <remote-name>            - Remove remote.", helpText);
 		[Fact]
 		public void When_not_calling_with_unrecognized_arguments_Then_not_match()
 		{
-			new CommandlineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] {"NOTLOG"});
+			new CommandLineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] {"NOTLOG"});
 
 			Assert.False(logWasMatched);
 			Assert.False(commitWasMatched);
@@ -535,7 +535,7 @@ git remote rm <remote-name>            - Remove remote.", helpText);
 		[Fact]
 		public void When_calling_with_too_few_arguments_Then_not_match()
 		{
-			new CommandlineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] { "git" });
+			new CommandLineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] { "git" });
 
 			Assert.False(logWasMatched);
 			Assert.False(commitWasMatched);
@@ -544,7 +544,7 @@ git remote rm <remote-name>            - Remove remote.", helpText);
 		[Fact]
 		public void When_calling_with_too_many_arguments_Then_not_match()
 		{
-			new CommandlineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] { "log", "too", "many", "args" });
+			new CommandLineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] { "log", "too", "many", "args" });
 
 			Assert.False(logWasMatched);
 			Assert.False(commitWasMatched);
@@ -553,7 +553,7 @@ git remote rm <remote-name>            - Remove remote.", helpText);
 		[Fact]
 		public void When_calling_with_specific_argumenthole_Then_match()
 		{
-			new CommandlineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] { "commit", "some message"});
+			new CommandLineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] { "commit", "some message"});
 
 			Assert.False(logWasMatched);
 			Assert.True(commitWasMatched);
@@ -562,7 +562,7 @@ git remote rm <remote-name>            - Remove remote.", helpText);
 		[Fact]
 		public void When_not_calling_with_specific_argumenthole_Then_not_match()
 		{
-			new CommandlineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] { "commit" });
+			new CommandLineHandling().Handle(repoBuilder.EmptyRepo().Git, GetTestConfigurationStub(), new[] { "commit" });
 
 			Assert.False(logWasMatched);
 			Assert.False(commitWasMatched);

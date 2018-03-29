@@ -1,7 +1,7 @@
 # KBGit - Git implemented from scratch in 500 lines of code (or less ...)
 
 Project statistics:  <!--start-->
-[![Stats](https://img.shields.io/badge/Code_lines-391-ff69b4.svg)]()
+[![Stats](https://img.shields.io/badge/Code_lines-392-ff69b4.svg)]()
 [![Stats](https://img.shields.io/badge/Doc_lines-25-ff69b4.svg)]()
 <!--end-->
 
@@ -30,16 +30,15 @@ KBGit..what?? My initials are *K.B.G.* - hence the name KBGit :-)
 ## Features implemented
 
  * commits
- * branches
-   * create
-   * delete
-   * list
+ * branches 
+   * (create, list, delete)
    * detached heads
    * HEAD branch
  * checkout branches or commits
  * logging (90% done missing start-end of branching)
  * push + pull
- * remotes
+ * remote (create, list, delete)
+ * command line parser
 
 
 ## Planned work 
@@ -49,7 +48,6 @@ KBGit..what?? My initials are *K.B.G.* - hence the name KBGit :-)
  * git INDEX rather than scanning files
  * blob compression
  * store git state on disk 
- * command line parser
  * clone
  * diff'er to show changes to files - and select changes...
 
@@ -57,4 +55,5 @@ KBGit..what?? My initials are *K.B.G.* - hence the name KBGit :-)
 I will blog about the implementation on [http://firstclassthoughts.co.uk/](http://firstclassthoughts.co.uk/) 
 when the implementation has stabilized. Comments etc. are much welcommed.
 
-For now the reading guide is to just read the `Git.cs` file. The first class is `KBGit` and it implements the main functionalities of Git. Just browse around with outset in that class.
+For now the reading guide is to just read the `Git.cs` file. The main classes are the `CommandLineHandling` which is the facade of the implementation. 
+The first class `KBGit` holds or redirects the main functionalities of Git. For now, just browse around with outset in those classes.
