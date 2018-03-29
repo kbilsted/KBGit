@@ -48,7 +48,7 @@ namespace KbgSoft.KBGit {
 
 			Console.WriteLine("---");
 			Console.WriteLine("creating branch");
-			git.CheckOut_b("Feature1", git.HeadRef(1));
+			git.CreateBranch("Feature1", git.HeadRef(1));
 			File.WriteAllText(git.CodeFolder + "featurefile.cs",
 				"class Feature \n{ Some cool feature \n}" + "\nso much\nmoooore\n123....wow\nlalala");
 			git.Commit("Add feature 1", "kasper", DateTime.Now, git.ScanFileSystem());

@@ -77,7 +77,7 @@ namespace kbgit.tests
 
 		public RepoBuilder NewBranch(string branch)
 		{
-			Git.CheckOut_b(branch);
+			Git.CreateBranch(branch);
 			return this;
 		}
 

@@ -38,15 +38,15 @@ namespace KbgSoft.KBGit
 		public void Init()
 		{
 			Hd = new Storage();
-			CheckOut_b("master", null);
+			CreateBranch("master", null);
 			Remotes = new RemotesHandling(Hd.Remotes);
 		}
 
 		/// <summary> Create a branch: e.g "git checkout -b foo" </summary>
-		public void CheckOut_b(string name) => CheckOut_b(name, Hd.Head.GetId(Hd));
+		public void CreateBranch(string name) => CreateBranch(name, Hd.Head.GetId(Hd));
 
 		/// <summary> Create a branch: e.g "git checkout -b foo fb1234.."</summary>
-		public void CheckOut_b(string name, Id position)
+		public void CreateBranch(string name, Id position)
 		{
 			Hd.Branches.Add(name, new Branch(position, position));
 			ResetCodeFolder(position);
@@ -356,8 +356,8 @@ namespace KbgSoft.KBGit
 			new GrammarLine("Initialize an empty repo", new[] { "init"}, (git, args) => { git.Init(); }),
 			new GrammarLine("Make a commit", new[] { "commit", "-m", "<message>"}, (git, args) => { git.Commit(args[2], "author", DateTime.Now, git.ScanFileSystem()); }),
 			new GrammarLine("Show the commit log", new[] { "log"}, (git, args) => git.Log()),
-			new GrammarLine("Create a new new branch at HEAD", new[] { "checkout", "-b", "<branchname>"}, (git, args) => { git.CheckOut_b(args[2]); }),
-			new GrammarLine("Create a new new branch at commit id", new[] { "checkout", "-b", "<branchname>", "<id>"}, (git, args) => { git.CheckOut_b(args[2], new Id(args[3])); }),
+			new GrammarLine("Create a new new branch at HEAD", new[] { "checkout", "-b", "<branchname>"}, (git, args) => { git.CreateBranch(args[2]); }),
+			new GrammarLine("Create a new new branch at commit id", new[] { "checkout", "-b", "<branchname>", "<id>"}, (git, args) => { git.CreateBranch(args[2], new Id(args[3])); }),
 			new GrammarLine("Update HEAD", new[] { "checkout", "<id>"}, (git, args) => { git.Checkout(new Id(args[1])); }),
 			new GrammarLine("Delete a branch", new[] { "branch", "-D", "<branchname>"}, (git, args) => { git.DeleteBranch(args[2]); }),
 			new GrammarLine("List existing branches", new[] { "branch"}, (git, args) => { git.Branch(); }),
