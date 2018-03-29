@@ -8,63 +8,63 @@ using Xunit;
 
 namespace kbgit.tests
 {
-    public class KbGitTests
-    {
-	    private RepoBuilder repoBuilder = new RepoBuilder();
+	public class KbGitTests
+	{
+		private RepoBuilder repoBuilder = new RepoBuilder();
 
 		[Fact]
-	    public void When_committing_Then_move_branch_pointer()
-	    {
-		    var id1 = repoBuilder.EmptyRepo().AddFile("a.txt").Commit();
+		public void When_committing_Then_move_branch_pointer()
+		{
+			var id1 = repoBuilder.EmptyRepo().AddFile("a.txt").Commit();
 
-		    var branchTip = repoBuilder.Git.Hd.Branches.Single().Value.Tip;
-		    Assert.Equal(id1, branchTip);
-	    }
+			var branchTip = repoBuilder.Git.Hd.Branches.Single().Value.Tip;
+			Assert.Equal(id1, branchTip);
+		}
 
-	    [Fact]
-	    public void When_committing_Then_set_parent_to_previous_head()
-	    {
+		[Fact]
+		public void When_committing_Then_set_parent_to_previous_head()
+		{
 			var parentId = repoBuilder.EmptyRepo().AddFile("a.txt").Commit();
 
-		    var commitId = repoBuilder.AddFile("a.txt").Commit();
+			var commitId = repoBuilder.AddFile("a.txt").Commit();
 
-		    Assert.Equal(parentId, repoBuilder.Git.Hd.Commits[commitId].Parents.First());
-	    }
+			Assert.Equal(parentId, repoBuilder.Git.Hd.Commits[commitId].Parents.First());
+		}
 
 		[Fact]
-	    public void CommitWhenHeadless()
-	    {
-		    repoBuilder = new RepoBuilder(@"c:\temp\");
-		    var git = repoBuilder.Build2Files3Commits();
-			git.Checkout(git.HeadRef(1));
-		    repoBuilder.AddFile("newfile", "dslfk");
+		public void CommitWhenHeadless()
+		{
+			repoBuilder = new RepoBuilder(@"c:\temp\");
+			var git = repoBuilder.Build2Files3Commits();
+			git.Branches.Checkout(git.HeadRef(1));
+			repoBuilder.AddFile("newfile", "dslfk");
 
-		    var id = git.Commit("headless commit", "a", new DateTime(2010, 11, 12), git.ScanFileSystem());
+			var id = git.Commit("headless commit", "a", new DateTime(2010, 11, 12), git.ScanFileSystem());
 
 			Assert.Equal("2ef282b36b6b71420c33b234ca74c4f185dc88948f6cbfa6164d01c5b2993448", id.ToString());
-	    }
+		}
 
-	    [Fact]
-	    public void When_Commit_a_similar_situation_to_a_previous_commit_Then_should_not_incread_blobs_nor_tree_blobs()
-	    {
-		    repoBuilder
-			    .EmptyRepo()
-			    .AddFile("a.txt")
-			    .Commit();
-
-		    repoBuilder
-			    .AddFile("b.txt")
-			    .Commit();
-
-		    Assert.Equal(2, repoBuilder.Git.Hd.Blobs.Count);
-		    Assert.Equal(2, repoBuilder.Git.Hd.Commits.Count);
+		[Fact]
+		public void When_Commit_a_similar_situation_to_a_previous_commit_Then_should_not_incread_blobs_nor_tree_blobs()
+		{
+			repoBuilder
+				.EmptyRepo()
+				.AddFile("a.txt")
+				.Commit();
 
 			repoBuilder
-			    .DeleteFile("b.txt")
-			    .Commit("deleted b");
+				.AddFile("b.txt")
+				.Commit();
 
-		    Assert.Equal(2, repoBuilder.Git.Hd.Blobs.Count);
-		    Assert.Equal(3, repoBuilder.Git.Hd.Commits.Count);
+			Assert.Equal(2, repoBuilder.Git.Hd.Blobs.Count);
+			Assert.Equal(2, repoBuilder.Git.Hd.Commits.Count);
+
+			repoBuilder
+				.DeleteFile("b.txt")
+				.Commit("deleted b");
+
+			Assert.Equal(2, repoBuilder.Git.Hd.Blobs.Count);
+			Assert.Equal(3, repoBuilder.Git.Hd.Commits.Count);
 		}
 
 		public string FileSystemScanFolder(KBGit git)
@@ -73,31 +73,31 @@ namespace kbgit.tests
 		}
 
 		[Fact]
-	    public void Given_two_toplevel_files_Then_()
-	    {
-		    repoBuilder = new RepoBuilder(@"c:\temp\");
-		    var git = repoBuilder.BuildEmptyRepo();
-		    repoBuilder.AddFile("car.txt", "car");
-		    repoBuilder.AddFile("door.txt", "door");
+		public void Given_two_toplevel_files_Then_()
+		{
+			repoBuilder = new RepoBuilder(@"c:\temp\");
+			var git = repoBuilder.BuildEmptyRepo();
+			repoBuilder.AddFile("car.txt", "car");
+			repoBuilder.AddFile("door.txt", "door");
 
 			var files = FileSystemScanFolder(git);
 
-		    Assert.Equal(@"tree 2 
+			Assert.Equal(@"tree 2 
 blob car.txt
 blob door.txt",  files);
-	    }
+		}
 
 		[Fact]
 		public void Given_two_files_in_subfolder_Then_()
-	    {
-		    repoBuilder = new RepoBuilder(@"c:\temp\");
-		    var git = repoBuilder.BuildEmptyRepo();
-		    repoBuilder.AddFile(@"FeatureVolvo\car.txt", "car");
-		    repoBuilder.AddFile(@"FeatureVolvo\door.txt", "door");
+		{
+			repoBuilder = new RepoBuilder(@"c:\temp\");
+			var git = repoBuilder.BuildEmptyRepo();
+			repoBuilder.AddFile(@"FeatureVolvo\car.txt", "car");
+			repoBuilder.AddFile(@"FeatureVolvo\door.txt", "door");
 
 			var files = FileSystemScanFolder(git);
 
-		    Assert.Equal(
+			Assert.Equal(
 @"tree 1 
 tree 2 FeatureVolvo
 blob FeatureVolvo\car.txt
@@ -106,18 +106,18 @@ blob FeatureVolvo\door.txt", files);
 
 		[Fact]
 		public void Get_folders_and_files()
-	    {
-		    repoBuilder = new RepoBuilder(@"c:\temp\");
-		    var git = repoBuilder.BuildEmptyRepo();
-		    repoBuilder.AddFile(@"FeatureVolvo\car.txt", "car");
-		    repoBuilder.AddFile(@"FeatureGarden\tree.txt", "tree");
-		    repoBuilder.AddFile(@"FeatureGarden\shovel.txt", "shovel");
-		    repoBuilder.AddFile(@"FeatureGarden\Suburb\grass.txt", "grass");
-		    repoBuilder.AddFile(@"FeatureGarden\Suburb\mover.txt", "mover");
+		{
+			repoBuilder = new RepoBuilder(@"c:\temp\");
+			var git = repoBuilder.BuildEmptyRepo();
+			repoBuilder.AddFile(@"FeatureVolvo\car.txt", "car");
+			repoBuilder.AddFile(@"FeatureGarden\tree.txt", "tree");
+			repoBuilder.AddFile(@"FeatureGarden\shovel.txt", "shovel");
+			repoBuilder.AddFile(@"FeatureGarden\Suburb\grass.txt", "grass");
+			repoBuilder.AddFile(@"FeatureGarden\Suburb\mover.txt", "mover");
 
 			var files = FileSystemScanFolder(git);
 
-		    Assert.Equal(
+			Assert.Equal(
 @"tree 2 
 tree 3 FeatureGarden
 blob FeatureGarden\shovel.txt
@@ -127,19 +127,19 @@ blob FeatureGarden\Suburb\grass.txt
 blob FeatureGarden\Suburb\mover.txt
 tree 1 FeatureVolvo
 blob FeatureVolvo\car.txt"
-			    , files);
-	    }
+				, files);
+		}
 
-	    [Fact]
-	    public void Visit()
-	    {
-		    var repoBuilder = new RepoBuilder(@"c:\temp\");
-		    var git = repoBuilder.BuildEmptyRepo();
-		    repoBuilder.AddFile(@"FeatureVolvo\car.txt", "car");
-		    repoBuilder.AddFile(@"FeatureGarden\tree.txt", "tree");
-		    repoBuilder.AddFile(@"FeatureGarden\shovel.txt", "shovel");
-		    repoBuilder.AddFile(@"FeatureGarden\Suburb\grass.txt", "grass");
-		    string buf = "";
+		[Fact]
+		public void Visit()
+		{
+			var repoBuilder = new RepoBuilder(@"c:\temp\");
+			var git = repoBuilder.BuildEmptyRepo();
+			repoBuilder.AddFile(@"FeatureVolvo\car.txt", "car");
+			repoBuilder.AddFile(@"FeatureGarden\tree.txt", "tree");
+			repoBuilder.AddFile(@"FeatureGarden\shovel.txt", "shovel");
+			repoBuilder.AddFile(@"FeatureGarden\Suburb\grass.txt", "grass");
+			string buf = "";
 			git.FileSystemScanFolder(git.CodeFolder).Visit(x =>
 			{
 				if (x is TreeTreeLine t)
@@ -148,7 +148,7 @@ blob FeatureVolvo\car.txt"
 					buf += $"visitblob {b.Path}\r\n";
 			});
 
-		    Assert.Equal(@"visittree 
+			Assert.Equal(@"visittree 
 visittree FeatureGarden
 visitblob FeatureGarden\shovel.txt
 visitblob FeatureGarden\tree.txt
@@ -157,7 +157,7 @@ visitblob FeatureGarden\Suburb\grass.txt
 visittree FeatureVolvo
 visitblob FeatureVolvo\car.txt
 ", buf);
-	    }
+		}
 	}
 
 	public class KBGitHeadTests
@@ -203,7 +203,7 @@ visitblob FeatureVolvo\car.txt
 			repoBuilder
 				.AddFile("b.txt")
 				.Commit();
-			repoBuilder.Git.Checkout(detachedId);
+			repoBuilder.Git.Branches.Checkout(detachedId);
 			var detachedId2=repoBuilder
 				.AddFile("a.txt")
 				.Commit();
@@ -330,10 +330,10 @@ Log for feature/speed
 				.AddFile(filename, "version 2 a")
 				.Commit();
 
-			repoBuilder.Git.Checkout(id1);
+			repoBuilder.Git.Branches.Checkout(id1);
 			Assert.Equal("version 1 a", repoBuilder.ReadFile(filename));
 
-			repoBuilder.Git.Checkout(id2);
+			repoBuilder.Git.Branches.Checkout(id2);
 			Assert.Equal("version 2 a", repoBuilder.ReadFile(filename));
 		}
 
@@ -351,10 +351,10 @@ Log for feature/speed
 
 			Assert.Equal(new[] {"a.txt", "b.txt"}, FilesInRepo());
 
-			repoBuilder.Git.Checkout("master");
+			repoBuilder.Git.Branches.Checkout("master");
 			Assert.Equal(new[] { "a.txt" }, FilesInRepo());
 
-			repoBuilder.Git.Checkout("featurebranch");
+			repoBuilder.Git.Branches.Checkout("featurebranch");
 			Assert.Equal(new[] { "a.txt", "b.txt" }, FilesInRepo());
 		}
 
@@ -370,10 +370,10 @@ Log for feature/speed
 				.AddFile("b.txt")
 				.Commit();
 
-			repoBuilder.Git.Checkout(detachedId);
+			repoBuilder.Git.Branches.Checkout(detachedId);
 
 			Assert.Equal($@"* (HEAD detached at {detachedId.ToString().Substring(0, 7)})
-  master", repoBuilder.Git.ListBranches());
+  master", repoBuilder.Git.Branches.ListBranches());
 		}
 
 		[Fact]
@@ -384,11 +384,39 @@ Log for feature/speed
 				.EmptyRepo()
 				.AddFile("a.txt")
 				.Commit();
-			Assert.Equal("* master", repoBuilder.Git.ListBranches());
+			Assert.Equal("* master", repoBuilder.Git.Branches.ListBranches());
 
 			repoBuilder.NewBranch("featurebranch");
 			Assert.Equal(@"* featurebranch
-  master", repoBuilder.Git.ListBranches());
+  master", repoBuilder.Git.Branches.ListBranches());
+		}
+
+		[Fact]
+		public void When_deleting_branch_Then_delete_branch()
+		{
+			repoBuilder
+				.EmptyRepo()
+				.AddFile("a.txt")
+				.Commit();
+			repoBuilder.NewBranch("featurebranch");
+			repoBuilder.Git.Branches.Checkout("master");
+
+			var msg = repoBuilder.Git.Branches.DeleteBranch("featurebranch");
+
+			Assert.StartsWith("Deleted branch nyhed (was ", msg);
+			Assert.Equal(@"* master", repoBuilder.Git.Branches.ListBranches());
+		}
+
+		[Fact]
+		public void When_deleting_current_branch_Then_fail()
+		{
+			repoBuilder
+				.EmptyRepo()
+				.AddFile("a.txt")
+				.Commit();
+			repoBuilder.NewBranch("featurebranch");
+
+			Assert.Throws<Exception>(() => repoBuilder.Git.Branches.DeleteBranch("featurebranch"));
 		}
 	}
 
@@ -474,7 +502,7 @@ git commit -m <message>                - Make a commit.
 git log                                - Show the commit log.
 git checkout -b <branchname>           - Create a new new branch at HEAD.
 git checkout -b <branchname> <id>      - Create a new new branch at commit id.
-git checkout <id>                      - Update HEAD.
+git checkout <id|name>                 - Update HEAD.
 git branch -D <branchname>             - Delete a branch.
 git branch                             - List existing branches.
 git gc                                 - Garbage collect.
@@ -541,37 +569,37 @@ git remote rm <remote-name>            - Remove remote.", helpText);
 		}
 	}
 
-    public class RemotesTest
-    {
-        private RepoBuilder repoBuilder = new RepoBuilder();
+	public class RemotesTest
+	{
+		private RepoBuilder repoBuilder = new RepoBuilder();
 
-        [Fact]
-        public void Given_no_remotes_When_listing_Then_return_empty()
-        {
-            Assert.Equal("", repoBuilder.BuildEmptyRepo().Remotes.List());
-        }
+		[Fact]
+		public void Given_no_remotes_When_listing_Then_return_empty()
+		{
+			Assert.Equal("", repoBuilder.BuildEmptyRepo().Remotes.List());
+		}
 
-        [Fact]
-        public void When_adding_remotes_Then_listing_shows_them()
-        {
-            var git = repoBuilder.BuildEmptyRepo();
-            git.Remotes.Add(new Remote(){Name = "origin", Url = new Uri("https://kbgit.world:8080")});
-            git.Remotes.Add(new Remote(){Name = "ghulu", Url = new Uri("https://Ghu.lu:8080")});
+		[Fact]
+		public void When_adding_remotes_Then_listing_shows_them()
+		{
+			var git = repoBuilder.BuildEmptyRepo();
+			git.Remotes.Add(new Remote(){Name = "origin", Url = new Uri("https://kbgit.world:8080")});
+			git.Remotes.Add(new Remote(){Name = "ghulu", Url = new Uri("https://Ghu.lu:8080")});
 
-            Assert.Equal(
+			Assert.Equal(
 @"origin       https://kbgit.world:8080/
 ghulu        https://ghu.lu:8080/", git.Remotes.List());
-        }
+		}
 
-        [Fact]
-        public void When_removing_remotes_Then_listing_does_not_show_them()
-        {
-            var git = repoBuilder.BuildEmptyRepo();
-            git.Remotes.Add(new Remote() { Name = "origin", Url = new Uri("https://kbgit.world:8080") });
-            git.Remotes.Add(new Remote() { Name = "ghulu", Url = new Uri("https://Ghu.lu:8080") });
-            git.Remotes.Remove("origin");
+		[Fact]
+		public void When_removing_remotes_Then_listing_does_not_show_them()
+		{
+			var git = repoBuilder.BuildEmptyRepo();
+			git.Remotes.Add(new Remote() { Name = "origin", Url = new Uri("https://kbgit.world:8080") });
+			git.Remotes.Add(new Remote() { Name = "ghulu", Url = new Uri("https://Ghu.lu:8080") });
+			git.Remotes.Remove("origin");
 
-            Assert.Equal(@"ghulu        https://ghu.lu:8080/", git.Remotes.List());
-        }
-    }
+			Assert.Equal(@"ghulu        https://ghu.lu:8080/", git.Remotes.List());
+		}
+	}
 }

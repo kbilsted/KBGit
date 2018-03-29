@@ -48,6 +48,7 @@ namespace kbgit.tests
 		}
 
 		public RepoBuilder AddFile(string path) => AddFile(path, Guid.NewGuid().ToString());
+
 		public RepoBuilder AddFile(string path, string content)
 		{
 			var filepath = Path.Combine(Git.CodeFolder, path);
@@ -77,7 +78,7 @@ namespace kbgit.tests
 
 		public RepoBuilder NewBranch(string branch)
 		{
-			Git.CreateBranch(branch);
+			Git.Branches.CreateBranch(branch);
 			return this;
 		}
 

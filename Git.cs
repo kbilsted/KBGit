@@ -26,6 +26,7 @@ namespace KbgSoft.KBGit
 		public string CodeFolder { get; }
 		public Storage Hd;
 		public RemotesHandling Remotes;
+		public BranchHandling Branches;
 
 		public KBGit(string startpath)
 		{
@@ -39,19 +40,9 @@ namespace KbgSoft.KBGit
 		public void InitializeRepository()
 		{
 			Hd = new Storage();
-			CreateBranch("master", null);
 			Remotes = new RemotesHandling(Hd.Remotes);
-		}
-
-		/// <summary> Create a branch: e.g "git checkout -b foo" </summary>
-		public void CreateBranch(string name) => CreateBranch(name, Hd.Head.GetId(Hd));
-
-		/// <summary> Create a branch: e.g "git checkout -b foo fb1234.."</summary>
-		public void CreateBranch(string name, Id position)
-		{
-			Hd.Branches.Add(name, new Branch(position, position));
-			Hd.ResetCodeFolder(CodeFolder, position);
-			Hd.Head.Update(name, Hd);
+			Branches = new BranchHandling(Hd, CodeFolder);
+			Branches.CreateBranch("master", null);
 		}
 
 		/// <summary>
@@ -156,25 +147,6 @@ namespace KbgSoft.KBGit
 				Hd.Branches[branch].Tip = branchInfo.Tip;
 			else
 				Hd.Branches.Add(branch, branchInfo);
-		}
-
-		/// <summary>
-		/// Delete a branch. eg. "git branch -D name"
-		/// </summary>
-		public void DeleteBranch(string branch) => Hd.Branches.Remove(branch);
-
-		/// <summary>
-		/// Change HEAD to branch,e.g. "git checkout featurebranch"
-		/// </summary>
-		public void Checkout(string branch) => Checkout(Hd.Branches[branch].Tip);
-
-		/// <summary>
-		/// Change folder content to commit position and move HEAD 
-		/// </summary>
-		public void Checkout(Id id)
-		{
-			Hd.ResetCodeFolder(CodeFolder, id);
-			Hd.Head.Update(id, Hd);
 		}
 
 		/// <summary>
@@ -303,6 +275,30 @@ namespace KbgSoft.KBGit
 
 			return new TreeTreeLine(id, treenode, path.Substring(CodeFolder.Length));
 		}
+	}
+
+	public class BranchHandling
+	{
+		private readonly Storage Hd;
+		private readonly string codeFolder;
+
+		public BranchHandling(Storage hd, string codeFolder)
+		{
+			Hd = hd;
+			this.codeFolder = codeFolder;
+		}
+
+		/// <summary> Create a branch: e.g "git checkout -b foo" </summary>
+		public string CreateBranch(string name) => CreateBranch(name, Hd.Head.GetId(Hd));
+
+		/// <summary> Create a branch: e.g "git checkout -b foo fb1234.."</summary>
+		public string CreateBranch(string name, Id position)
+		{
+			Hd.Branches.Add(name, new Branch(position, position));
+			Hd.ResetCodeFolder(codeFolder, position);
+			Hd.Head.Update(name, Hd);
+			return $"Switched to a new branch '{name}'";
+		}
 
 		/// <summary>
 		/// return all branches and highlight current branch: "git branch"
@@ -316,6 +312,37 @@ namespace KbgSoft.KBGit
 			var detached = Hd.Head.IsDetachedHead() ? $"* (HEAD detached at {Hd.Head.Id.ToString().Substring(0, 7)})\r\n" : "";
 
 			return detached + string.Join("\r\n", branched);
+		}
+
+		/// <summary>
+		/// Delete a branch. eg. "git branch -D name"
+		/// </summary>
+		public string DeleteBranch(string branch)
+		{
+			if(Hd.Head.Branch == branch)
+				throw new Exception("error: Cannot delete branch 'nyhed' checked out");
+
+			var id = Hd.Head.GetId(Hd);
+			Hd.Branches.Remove(branch);
+			return $"Deleted branch nyhed (was {id.ShaId.Substring(0,7)}).";
+		}
+
+		/// <summary>
+		/// Change HEAD to branch,e.g. "git checkout featurebranch"
+		/// </summary>
+		public string Checkout(string branch)
+		{
+			Checkout(Hd.Branches[branch].Tip);
+			return $"Switched to a new branch '{branch}";
+		}
+
+		/// <summary>
+		/// Change folder content to commit position and move HEAD 
+		/// </summary>
+		public string Checkout(Id id)
+		{
+			Hd.ResetCodeFolder(codeFolder, id);
+			return Hd.Head.Update(id, Hd);
 		}
 	}
 
@@ -341,11 +368,11 @@ namespace KbgSoft.KBGit
 			new GrammarLine("Initialize an empty repo", new[] { "init"}, (git, args) => { git.InitializeRepository(); }),
 			new GrammarLine("Make a commit", new[] { "commit", "-m", "<message>"}, (git, args) => { git.Commit(args[2], "author", DateTime.Now, git.ScanFileSystem()); }),
 			new GrammarLine("Show the commit log", new[] { "log"}, (git, args) => git.Log()),
-			new GrammarLine("Create a new new branch at HEAD", new[] { "checkout", "-b", "<branchname>"}, (git, args) => { git.CreateBranch(args[2]); }),
-			new GrammarLine("Create a new new branch at commit id", new[] { "checkout", "-b", "<branchname>", "<id>"}, (git, args) => { git.CreateBranch(args[2], new Id(args[3])); }),
-			new GrammarLine("Update HEAD", new[] { "checkout", "<id>"}, (git, args) => { git.Checkout(new Id(args[1])); }),
-			new GrammarLine("Delete a branch", new[] { "branch", "-D", "<branchname>"}, (git, args) => { git.DeleteBranch(args[2]); }),
-			new GrammarLine("List existing branches", new[] { "branch"}, (git, args) => { git.ListBranches(); }),
+			new GrammarLine("Create a new new branch at HEAD", new[] { "checkout", "-b", "<branchname>"}, (git, args) => git.Branches.CreateBranch(args[2])),
+			new GrammarLine("Create a new new branch at commit id", new[] { "checkout", "-b", "<branchname>", "<id>"}, (git, args) => git.Branches.CreateBranch(args[2], new Id(args[3]))),
+			new GrammarLine("Update HEAD", new[] { "checkout", "<id|name>"}, (git, args) => git.Hd.Branches.ContainsKey(args[1]) ? git.Branches.Checkout(args[1]) : git.Branches.Checkout(new Id(args[1]))),
+			new GrammarLine("Delete a branch", new[] { "branch", "-D", "<branchname>"}, (git, args) => git.Branches.DeleteBranch(args[2])),
+			new GrammarLine("List existing branches", new[] { "branch"}, (git, args) => git.Branches.ListBranches()),
 			new GrammarLine("Garbage collect", new[] { "gc" }, (git, args) => { git.Gc(); }),
 			new GrammarLine("Start git as a server", new[] { "daemon", "<port>" }, (git, args) => { new GitServer(git).StartDaemon(int.Parse(args[1])); }),
 			new GrammarLine("Pull code", new[] { "pull", "<remote-name>", "<branch>"}, (git, args) => { new GitNetworkClient().PullBranch(git.Hd.Remotes.First(x => x.Name == args[1]), args[2], git);}),
@@ -518,7 +545,7 @@ namespace KbgSoft.KBGit
 			Id = null;
 		}
 
-		public void Update(Id position, Storage s)
+		public string Update(Id position, Storage s)
 		{
 			var b = s.Branches.FirstOrDefault(x => x.Value.Tip.Equals(position));
 			if(b.Key == null)
@@ -526,15 +553,13 @@ namespace KbgSoft.KBGit
 				if (!s.Commits.ContainsKey(position))
 					throw new ArgumentOutOfRangeException($"No commit with id '{position}'");
 
-				Console.WriteLine("You are in 'detached HEAD' state. You can look around, make experimental changes and commit them, and you can discard any commits you make in this state without impacting any branches by performing another checkout.");
-
 				Branch = null;
 				Id = position;
+				return "You are in 'detached HEAD' state. You can look around, make experimental changes and commit them, and you can discard any commits you make in this state without impacting any branches by performing another checkout.";
 			}
-			else
-			{
-				Update(b.Key, s);
-			}
+
+			Update(b.Key, s);
+			return null;
 		}
 
 		public bool IsDetachedHead() => Id != null;
