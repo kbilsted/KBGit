@@ -480,7 +480,10 @@ git branch                             - List existing branches.
 git gc                                 - Garbage collect.
 git daemon <port>                      - Start git as a server.
 git pull <remote-name> <branch>        - Pull code.
-git push <remote-name> <branch>        - Push code.", helpText);
+git push <remote-name> <branch>        - Push code.
+git remote -v                          - List remotes.
+git remote add <remote-name> <url>     - Add remote.
+git remote rm <remote-name>            - Remove remote.", helpText);
 		}
 
 		[Fact]
@@ -564,13 +567,11 @@ ghulu        https://ghu.lu:8080/", git.Remotes.List());
         public void When_removing_remotes_Then_listing_does_not_show_them()
         {
             var git = repoBuilder.BuildEmptyRepo();
-            var origin = new Remote() { Name = "origin", Url = new Uri("https://kbgit.world:8080") };
-            git.Remotes.Add(origin);
+            git.Remotes.Add(new Remote() { Name = "origin", Url = new Uri("https://kbgit.world:8080") });
             git.Remotes.Add(new Remote() { Name = "ghulu", Url = new Uri("https://Ghu.lu:8080") });
-            git.Remotes.Remove(origin);
+            git.Remotes.Remove("origin");
 
             Assert.Equal(@"ghulu        https://ghu.lu:8080/", git.Remotes.List());
         }
-
     }
 }

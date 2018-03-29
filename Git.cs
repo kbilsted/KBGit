@@ -365,6 +365,9 @@ namespace KbgSoft.KBGit
 			new GrammarLine("Start git as a server", new[] { "daemon", "<port>" }, (git, args) => { new GitServer(git).StartDaemon(int.Parse(args[1])); }),
 			new GrammarLine("Pull code", new[] { "pull", "<remote-name>", "<branch>"}, (git, args) => { new GitNetworkClient().PullBranch(git.Hd.Remotes.First(x => x.Name == args[1]), args[2], git);}),
 			new GrammarLine("Push code", new[] { "push", "<remote-name>", "<branch>"}, (git, args) => { new GitNetworkClient().PushBranch(git.Hd.Remotes.First(x => x.Name == args[1]), args[2], git.Hd.Branches[args[2]], null, git.GetReachableNodes(git.Hd.Branches[args[2]].Tip).ToArray()); }),
+			new GrammarLine("List remotes", new[] { "remote", "-v"}, (git, args) => { git.Remotes.List(); }),
+			new GrammarLine("Add remote", new[] { "remote", "add", "<remote-name>", "<url>"}, (git, args) => { git.Remotes.Add(new Remote(){Name = args[2], Url = new Uri(args[3])}); }),
+			new GrammarLine("Remove remote", new[] { "remote", "rm", "<remote-name>"}, (git, args) => { git.Remotes.Remove(args[2]); }),
 		};
 
 		public string Handle(KBGit git, GrammarLine[] config, string[] cmdParams)
@@ -492,7 +495,7 @@ namespace KbgSoft.KBGit
 		/// <summary>
 		/// Remove a remote
 		/// </summary>
-		public void Remove(Remote r) => Remotes = Remotes.Where(x => x.Name != r.Name).ToList();
+		public void Remove(string name) => Remotes = Remotes.Where(x => x.Name != name).ToList();
 	}
 
 	/// <summary>
