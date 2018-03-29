@@ -176,7 +176,7 @@ namespace KbgSoft.KBGit
 		/// <summary>
 		/// Delete a branch. eg. "git branch -D name"
 		/// </summary>
-		public void Branch_D(string branch) => Hd.Branches.Remove(branch);
+		public void DeleteBranch(string branch) => Hd.Branches.Remove(branch);
 
 		/// <summary>
 		/// Change HEAD to branch,e.g. "git checkout featurebranch"
@@ -359,7 +359,7 @@ namespace KbgSoft.KBGit
 			new GrammarLine("Create a new new branch at HEAD", new[] { "checkout", "-b", "<branchname>"}, (git, args) => { git.CheckOut_b(args[2]); }),
 			new GrammarLine("Create a new new branch at commit id", new[] { "checkout", "-b", "<branchname>", "<id>"}, (git, args) => { git.CheckOut_b(args[2], new Id(args[3])); }),
 			new GrammarLine("Update HEAD", new[] { "checkout", "<id>"}, (git, args) => { git.Checkout(new Id(args[1])); }),
-			new GrammarLine("Delete a branch", new[] { "branch", "-D", "<branchname>"}, (git, args) => { git.Branch_D(args[2]); }),
+			new GrammarLine("Delete a branch", new[] { "branch", "-D", "<branchname>"}, (git, args) => { git.DeleteBranch(args[2]); }),
 			new GrammarLine("List existing branches", new[] { "branch"}, (git, args) => { git.Branch(); }),
 			new GrammarLine("Garbage collect", new[] { "gc" }, (git, args) => { git.Gc(); }),
 			new GrammarLine("Start git as a server", new[] { "daemon", "<port>" }, (git, args) => { new GitServer(git).StartDaemon(int.Parse(args[1])); }),
