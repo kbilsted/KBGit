@@ -49,7 +49,7 @@ namespace KbgSoft.KBGit
 		public void CreateBranch(string name, Id position)
 		{
 			Hd.Branches.Add(name, new Branch(position, position));
-			ResetCodeFolder(position);
+			Hd.ResetCodeFolder(CodeFolder, position);
 			Hd.Head.Update(name, Hd);
 		}
 
@@ -149,22 +149,6 @@ namespace KbgSoft.KBGit
 			return commitId;
 		}
 
-		void ResetCodeFolder(Id position)
-		{
-			if (Directory.Exists(CodeFolder))
-				Directory.Delete(CodeFolder, true);
-			Directory.CreateDirectory(CodeFolder);
-
-			if (position != null)
-			{
-				var commit = Hd.Commits[position];
-				foreach (BlobTreeLine line in commit.Tree.Lines)
-				{
-					File.WriteAllText(Path.Combine(CodeFolder, line.Path), line.Blob.Content);
-				}
-			}
-		}
-
 		internal void AddOrSetBranch(string branch, Branch branchInfo)
 		{
 			if (Hd.Branches.ContainsKey(branch))
@@ -188,7 +172,7 @@ namespace KbgSoft.KBGit
 		/// </summary>
 		public void Checkout(Id id)
 		{
-			ResetCodeFolder(id);
+			Hd.ResetCodeFolder(CodeFolder, id);
 			Hd.Head.Update(id, Hd);
 		}
 
@@ -451,6 +435,22 @@ namespace KbgSoft.KBGit
 		public Dictionary<string, Branch> Branches = new Dictionary<string, Branch>();
 		public Head Head = new Head();
 		public List<Remote> Remotes = new List<Remote>();
+
+		internal void ResetCodeFolder(string codeFolder, Id position)
+		{
+			if (Directory.Exists(codeFolder))
+				Directory.Delete(codeFolder, true);
+			Directory.CreateDirectory(codeFolder);
+
+			if (position != null)
+			{
+				var commit = Commits[position];
+				foreach (BlobTreeLine line in commit.Tree.Lines)
+				{
+					File.WriteAllText(Path.Combine(codeFolder, line.Path), line.Blob.Content);
+				}
+			}
+		}
 	}
 
 	[Serializable]
