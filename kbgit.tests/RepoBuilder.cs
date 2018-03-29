@@ -20,14 +20,14 @@ namespace kbgit.tests
 		public KBGit BuildEmptyRepo()
 		{
 			Git = new KBGit(basePath);
-			Git.Init();
+			Git.InitializeRepository();
 			return Git;
 		}
 
 		public RepoBuilder EmptyRepo()
 		{
 			Git = new KBGit(basePath);
-			Git.Init();
+			Git.InitializeRepository();
 			return this;
 		}
 

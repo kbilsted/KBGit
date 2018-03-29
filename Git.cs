@@ -26,6 +26,7 @@ namespace KbgSoft.KBGit
 		public string CodeFolder { get; }
 		public Storage Hd;
 		public RemotesHandling Remotes;
+
 		public KBGit(string startpath)
 		{
 			CodeFolder = startpath;
@@ -35,7 +36,7 @@ namespace KbgSoft.KBGit
 		/// <summary>
 		/// Initialize a repo. eg. "git init"
 		/// </summary>
-		public void Init()
+		public void InitializeRepository()
 		{
 			Hd = new Storage();
 			CreateBranch("master", null);
@@ -337,7 +338,7 @@ namespace KbgSoft.KBGit
 	{
 		public static readonly GrammarLine[] Config = 
 		{
-			new GrammarLine("Initialize an empty repo", new[] { "init"}, (git, args) => { git.Init(); }),
+			new GrammarLine("Initialize an empty repo", new[] { "init"}, (git, args) => { git.InitializeRepository(); }),
 			new GrammarLine("Make a commit", new[] { "commit", "-m", "<message>"}, (git, args) => { git.Commit(args[2], "author", DateTime.Now, git.ScanFileSystem()); }),
 			new GrammarLine("Show the commit log", new[] { "log"}, (git, args) => git.Log()),
 			new GrammarLine("Create a new new branch at HEAD", new[] { "checkout", "-b", "<branchname>"}, (git, args) => { git.CreateBranch(args[2]); }),

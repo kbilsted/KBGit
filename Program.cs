@@ -26,7 +26,7 @@ namespace KbgSoft.KBGit {
 			
 			//Call(@"c:\temp\kbgit\129837921734298\");
 			var git = new KBGit("");
-			git.Init();
+			git.InitializeRepository();
 			//git.CommandLineHandling("init");
 			File.WriteAllText(git.CodeFolder + "file.txt", "Hello world");
 			git.Commit("Adding note", "kasper", DateTime.Now, git.ScanFileSystem());
