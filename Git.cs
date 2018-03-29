@@ -307,7 +307,7 @@ namespace KbgSoft.KBGit
 		/// <summary>
 		/// return all branches and highlight current branch: "git branch"
 		/// </summary>
-		public string Branch()
+		public string ListBranches()
 		{
 			var branched = Hd.Branches
 				.OrderBy(x => x.Key)
@@ -345,7 +345,7 @@ namespace KbgSoft.KBGit
 			new GrammarLine("Create a new new branch at commit id", new[] { "checkout", "-b", "<branchname>", "<id>"}, (git, args) => { git.CreateBranch(args[2], new Id(args[3])); }),
 			new GrammarLine("Update HEAD", new[] { "checkout", "<id>"}, (git, args) => { git.Checkout(new Id(args[1])); }),
 			new GrammarLine("Delete a branch", new[] { "branch", "-D", "<branchname>"}, (git, args) => { git.DeleteBranch(args[2]); }),
-			new GrammarLine("List existing branches", new[] { "branch"}, (git, args) => { git.Branch(); }),
+			new GrammarLine("List existing branches", new[] { "branch"}, (git, args) => { git.ListBranches(); }),
 			new GrammarLine("Garbage collect", new[] { "gc" }, (git, args) => { git.Gc(); }),
 			new GrammarLine("Start git as a server", new[] { "daemon", "<port>" }, (git, args) => { new GitServer(git).StartDaemon(int.Parse(args[1])); }),
 			new GrammarLine("Pull code", new[] { "pull", "<remote-name>", "<branch>"}, (git, args) => { new GitNetworkClient().PullBranch(git.Hd.Remotes.First(x => x.Name == args[1]), args[2], git);}),

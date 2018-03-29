@@ -373,7 +373,7 @@ Log for feature/speed
 			repoBuilder.Git.Checkout(detachedId);
 
 			Assert.Equal($@"* (HEAD detached at {detachedId.ToString().Substring(0, 7)})
-  master", repoBuilder.Git.Branch());
+  master", repoBuilder.Git.ListBranches());
 		}
 
 		[Fact]
@@ -384,11 +384,11 @@ Log for feature/speed
 				.EmptyRepo()
 				.AddFile("a.txt")
 				.Commit();
-			Assert.Equal("* master", repoBuilder.Git.Branch());
+			Assert.Equal("* master", repoBuilder.Git.ListBranches());
 
 			repoBuilder.NewBranch("featurebranch");
 			Assert.Equal(@"* featurebranch
-  master", repoBuilder.Git.Branch());
+  master", repoBuilder.Git.ListBranches());
 		}
 	}
 
