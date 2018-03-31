@@ -509,6 +509,7 @@ git gc                                 - Garbage collect.
 git daemon <port>                      - Start git as a server.
 git pull <remote-name> <branch>        - Pull code.
 git push <remote-name> <branch>        - Push code.
+git clone <url> <branch>               - Clone code from other server.
 git remote -v                          - List remotes.
 git remote add <remote-name> <url>     - Add remote.
 git remote rm <remote-name>            - Remove remote.", helpText);

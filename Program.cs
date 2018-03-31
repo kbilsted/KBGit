@@ -19,45 +19,7 @@ namespace KbgSoft.KBGit {
 			Console.WriteLine("**: "+args.Length);
 			Console.WriteLine(string.Join("\n***: ", args));
 
-			var path = @"c:\temp\kbgit\129837921734298\";
-			if (Directory.Exists(path))
-				Directory.Delete(path, true);
-			Directory.CreateDirectory(path);
-			
-			//Call(@"c:\temp\kbgit\129837921734298\");
-			var git = new KBGit("");
-			git.InitializeRepository();
-			//git.CommandLineHandling("init");
-			File.WriteAllText(git.CodeFolder + "file.txt", "Hello world");
-			git.Commit("Adding note", "kasper", DateTime.Now, git.ScanFileSystem());
-			Console.WriteLine(git.Log());
-			WaitKey();
-
-			Console.WriteLine("---");
-			File.WriteAllText(git.CodeFolder + "file.txt", "Hello world\nAnd more stuff here");
-			File.WriteAllText(git.CodeFolder + "readme.md", "#title\n\nthis module is bla bla\nand then more bla bla");
-			git.Commit("Adding extra text and readme", "kasper", DateTime.Now, git.ScanFileSystem());
-			Console.WriteLine(git.Log());
-
-			Console.WriteLine("---");
-			File.WriteAllText(git.CodeFolder + "file.txt",
-				"# title\n\nthis module is bla bla\nand then more bla bla" + "\nso much\nmoooore\n123....wow\nlalala");
-			git.Commit("More text to file1", "kasper", DateTime.Now, git.ScanFileSystem());
-			Console.WriteLine(git.Log());
-			WaitKey();
-
-			Console.WriteLine("---");
-			Console.WriteLine("creating branch");
-			git.Branches.CreateBranch("Feature1", git.HeadRef(1));
-			File.WriteAllText(git.CodeFolder + "featurefile.cs",
-				"class Feature \n{ Some cool feature \n}" + "\nso much\nmoooore\n123....wow\nlalala");
-			git.Commit("Add feature 1", "kasper", DateTime.Now, git.ScanFileSystem());
-			Console.WriteLine(git.Log());
-			WaitKey();
-
-			Console.WriteLine("reset to main");
-			git.Branches.Checkout("master");
-			WaitKey();
+			Console.WriteLine(new CommandLineHandling().Handle(new KBGit("."), CommandLineHandling.Config, args));
 		}
 
 		public static void Call(string workingDirectory)

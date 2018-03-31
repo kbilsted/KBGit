@@ -10,8 +10,11 @@ namespace kbgit.tests
 		public KBGit Git;
 
 		public RepoBuilder() : this(@"c:\temp\", Guid.NewGuid()) { }
+
 		public RepoBuilder(Guid unittestguid) : this(@"c:\temp\", unittestguid) { }
+
 		public RepoBuilder(string basePath) : this(basePath, Guid.NewGuid()) { }
+
 		public RepoBuilder(string basePath, Guid unittestguid)
 		{
 			this.basePath = Path.Combine(basePath, $"kbgit\\{unittestguid}\\");

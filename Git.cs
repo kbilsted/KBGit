@@ -41,6 +41,7 @@ namespace KbgSoft.KBGit
 			new GrammarLine("Start git as a server", new[] { "daemon", "<port>" }, (git, args) => { new GitServer(git).StartDaemon(int.Parse(args[1])); }),
 			new GrammarLine("Pull code", new[] { "pull", "<remote-name>", "<branch>"}, (git, args) => { new GitNetworkClient().PullBranch(git.Hd.Remotes.First(x => x.Name == args[1]), args[2], git);}),
 			new GrammarLine("Push code", new[] { "push", "<remote-name>", "<branch>"}, (git, args) => { new GitNetworkClient().PushBranch(git.Hd.Remotes.First(x => x.Name == args[1]), args[2], git.Hd.Branches[args[2]], null, git.GetReachableNodes(git.Hd.Branches[args[2]].Tip).ToArray()); }),
+			new GrammarLine("Clone code from other server", new[] { "clone", "<url>", "<branch>"}, (git, args) => { new GitNetworkClient().CloneBranch(git, "origin", args[1], args[2]); }),
 			new GrammarLine("List remotes", new[] { "remote", "-v"}, (git, args) => { git.Remotes.List(); }),
 			new GrammarLine("Add remote", new[] { "remote", "add", "<remote-name>", "<url>"}, (git, args) => { git.Remotes.Add(new Remote(){Name = args[2], Url = new Uri(args[3])}); }),
 			new GrammarLine("Remove remote", new[] { "remote", "rm", "<remote-name>"}, (git, args) => { git.Remotes.Remove(args[2]); }),
@@ -392,6 +393,8 @@ namespace KbgSoft.KBGit
 			Hd.ResetCodeFolder(codeFolder, id);
 			return Hd.Head.Update(id, Hd);
 		}
+
+		public void ResetBranchPointer(string branch, Id newTip) => Hd.Branches[branch].Tip = newTip;
 	}
 
 	public static class ByteHelper
@@ -504,7 +507,7 @@ namespace KbgSoft.KBGit
 
 	public class RemotesHandling
 	{
-		List<Remote> Remotes;
+		public readonly List<Remote> Remotes;
 
 		public RemotesHandling(List<Remote> remotes)
 		{
@@ -524,7 +527,7 @@ namespace KbgSoft.KBGit
 		/// <summary>
 		/// Remove a remote
 		/// </summary>
-		public void Remove(string name) => Remotes = Remotes.Where(x => x.Name != name).ToList();
+		public void Remove(string name) => Remotes.RemoveAll(x => x.Name == name);
 	}
 
 	/// <summary>
@@ -676,11 +679,21 @@ namespace KbgSoft.KBGit
 			Console.WriteLine($"Push status: {result.StatusCode}");
 		}
 
-		public void PullBranch(Remote remote, string branch, KBGit git)
+		public Id PullBranch(Remote remote, string branch, KBGit git)
 		{
 			var bytes = new HttpClient().GetByteArrayAsync(remote.Url + "?branch=" + branch).GetAwaiter().GetResult();
 			var commits = ByteHelper.Deserialize<GitPullResponse>(bytes);
 			git.RawImportCommits(commits.Commits, $"{remote.Name}/{branch}", commits.BranchInfo);
+			return commits.BranchInfo.Tip;
+		}
+
+		public void CloneBranch(KBGit git, string remotename, string url, string branch)
+		{
+			git.InitializeRepository();
+			git.Remotes.Add(new Remote { Name = remotename, Url = new Uri(url)});
+			var tip = PullBranch(git.Remotes.Remotes.Single(), branch, git);
+			git.Branches.ResetBranchPointer("master", tip);
+			git.Branches.Checkout("master");
 		}
 	}
 
