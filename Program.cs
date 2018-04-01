@@ -19,7 +19,7 @@ namespace KbgSoft.KBGit {
 			Console.WriteLine("**: "+args.Length);
 			Console.WriteLine(string.Join("\n***: ", args));
 
-			Console.WriteLine(new CommandLineHandling().Handle(new KBGit("."), CommandLineHandling.Config, args));
+			Console.WriteLine(new CommandLineHandling().Handle(new KBGit(new DirectoryInfo(".").FullName), CommandLineHandling.Config, args));
 		}
 
 		public static void Call(string workingDirectory)

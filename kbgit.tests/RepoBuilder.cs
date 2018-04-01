@@ -18,6 +18,7 @@ namespace kbgit.tests
 		public RepoBuilder(string basePath, Guid unittestguid)
 		{
 			this.basePath = Path.Combine(basePath, $"kbgit\\{unittestguid}\\");
+			Directory.CreateDirectory(this.basePath);
 		}
 
 		public KBGit BuildEmptyRepo()

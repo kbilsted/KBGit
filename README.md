@@ -1,8 +1,8 @@
 # KBGit - Git implemented from scratch in 500 lines of code (or less ...)
 
 Project statistics:  <!--start-->
-[![Stats](https://img.shields.io/badge/Code_lines-392-ff69b4.svg)]()
-[![Stats](https://img.shields.io/badge/Doc_lines-25-ff69b4.svg)]()
+[![Stats](https://img.shields.io/badge/Code_lines-414-ff69b4.svg)]()
+[![Stats](https://img.shields.io/badge/Doc_lines-24-ff69b4.svg)]()
 <!--end-->
 
 Recently I dug into their implementation details of Git. The simplicity of the implementation was completely mind-boggling. 
@@ -35,10 +35,12 @@ KBGit..what?? My initials are *K.B.G.* - hence the name KBGit :-)
    * detached heads
    * HEAD branch
  * checkout branches or commits
- * logging (90% done missing start-end of branching)
+ * logging
  * push + pull
+ * clone
  * remote (create, list, delete)
  * command line parser
+ * store git state on disk 
 
 
 ## Planned work 
@@ -47,8 +49,6 @@ KBGit..what?? My initials are *K.B.G.* - hence the name KBGit :-)
  * logging (graphical)
  * git INDEX rather than scanning files
  * blob compression
- * store git state on disk 
- * clone
  * diff'er to show changes to files - and select changes...
 
 

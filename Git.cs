@@ -52,9 +52,14 @@ namespace KbgSoft.KBGit
 			var match = config.SingleOrDefault(x => x.Grammar.Length == cmdParams.Length
 												 && x.Grammar.Zip(cmdParams, (gramar, arg) => gramar.StartsWith("<") || gramar == arg).All(m => m));
 
-			return match == null
-				? $"KBGit Help\r\n----------\r\ngit {string.Join("\r\ngit ", config.Select(x => $"{string.Join(" ", x.Grammar),-34} - {x.Explanation}."))}"
-				: match.ActionOnMatch(git, cmdParams);
+			if (match == null)
+				return $"KBGit Help\r\n----------\r\ngit {string.Join("\r\ngit ", config.Select(x => $"{string.Join(" ", x.Grammar),-34} - {x.Explanation}."))}";
+
+			git.LoadState();
+			 var result = match.ActionOnMatch(git, cmdParams);
+			git.StoreState();
+
+			return result;
 		}
 	}
 
@@ -81,6 +86,24 @@ namespace KbgSoft.KBGit
 			// Path.Combine(CodeFolder, KBGitFolderName, Datafile);
 		}
 
+		public string GitStateFile => Path.Combine(CodeFolder, ".git");
+
+		public void LoadState()
+		{
+			if (File.Exists(GitStateFile))
+			{
+				Hd = ByteHelper.Deserialize<Storage>(File.ReadAllBytes(GitStateFile));
+				Remotes = new RemotesHandling(Hd.Remotes);
+				Branches = new BranchHandling(Hd, CodeFolder);
+			}
+		}
+
+		public void StoreState()
+		{
+			if (Hd != null)
+				File.WriteAllBytes(GitStateFile, ByteHelper.Serialize(Hd));
+		}
+
 		/// <summary>
 		/// Initialize a repo. eg. "git init"
 		/// </summary>
@@ -91,7 +114,6 @@ namespace KbgSoft.KBGit
 			Branches = new BranchHandling(Hd, CodeFolder);
 			Branches.CreateBranch("master", null);
 			return "Initialized empty Git repository";
-
 		}
 
 		/// <summary>
@@ -274,6 +296,7 @@ namespace KbgSoft.KBGit
 		public Fileinfo[] ScanFileSystem()
 		{
 			return new DirectoryInfo(CodeFolder).EnumerateFiles("*", SearchOption.AllDirectories)
+				.Where(x=>x.Name!=".git")
 				.Select(x => new Fileinfo(x.FullName.Substring(CodeFolder.Length), File.ReadAllText(x.FullName)))
 				.ToArray();
 		}
@@ -458,6 +481,7 @@ namespace KbgSoft.KBGit
 		public override int GetHashCode() => ShaId.GetHashCode();
 	}
 
+	[Serializable]
 	public class Storage
 	{
 		public Dictionary<Id, BlobNode> Blobs = new Dictionary<Id, BlobNode>();
@@ -470,9 +494,8 @@ namespace KbgSoft.KBGit
 
 		internal void ResetCodeFolder(string codeFolder, Id position)
 		{
-			if (Directory.Exists(codeFolder))
-				Directory.Delete(codeFolder, true);
-			Directory.CreateDirectory(codeFolder);
+			Directory.EnumerateDirectories(codeFolder).Where(x=>{ Console.WriteLine("'"+x+"'"); return true;}).ToList().ForEach(x=>Directory.Delete(x, true));
+			Directory.EnumerateFiles(codeFolder).Where(x => x != Path.Combine(codeFolder, ".git")).Where(x => { Console.WriteLine("'" + x + "'"); return true; }).ToList().ForEach(x => File.Delete(x));
 
 			if (position != null)
 			{
