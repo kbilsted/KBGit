@@ -7,6 +7,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KBGit", "KBGit.csproj", "{7
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "kbgit.tests", "kbgit.tests\kbgit.tests.csproj", "{2CDBAE6B-FB63-4AB4-9E5B-357B8D9E0921}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8203C57F-641A-4F59-AC11-541A351231A3}"
+	ProjectSection(SolutionItems) = preProject
+		kbgithelper.ps1 = kbgithelper.ps1
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
