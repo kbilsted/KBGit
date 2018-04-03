@@ -83,7 +83,6 @@ namespace KbgSoft.KBGit
 		public KBGit(string startpath)
 		{
 			CodeFolder = startpath;
-			// Path.Combine(CodeFolder, KBGitFolderName, Datafile);
 		}
 
 		public string GitStateFile => Path.Combine(CodeFolder, ".git");
@@ -220,9 +219,7 @@ namespace KbgSoft.KBGit
 				Hd.Branches.Add(branch, branchInfo);
 		}
 
-		/// <summary>
-		/// eg. "git log"
-		/// </summary>
+		/// <summary> eg. "git log" </summary>
 		public string Log()
 		{
 			var sb = new StringBuilder();
@@ -248,9 +245,7 @@ namespace KbgSoft.KBGit
 			return sb.ToString();
 		}
 
-		/// <summary>
-		/// Clean out unreferences nodes. Equivalent to "git gc"
-		/// </summary>
+		/// <summary> Clean out unreferences nodes. Equivalent to "git gc" </summary>
 		public void Gc()
 		{
 			var reachables = Hd.Branches.Select(x => x.Value.Tip)
@@ -392,11 +387,11 @@ namespace KbgSoft.KBGit
 		public string DeleteBranch(string branch)
 		{
 			if(Hd.Head.Branch == branch)
-				throw new Exception("error: Cannot delete branch 'nyhed' checked out");
+				throw new Exception($"error: Cannot delete branch '{branch}' checked out");
 
 			var id = Hd.Head.GetId(Hd);
 			Hd.Branches.Remove(branch);
-			return $"Deleted branch nyhed (was {id.ShaId.Substring(0,7)}).";
+			return $"Deleted branch {branch} (was {id.ShaId}).";
 		}
 
 		/// <summary>
@@ -405,7 +400,7 @@ namespace KbgSoft.KBGit
 		public string Checkout(string branch)
 		{
 			Checkout(Hd.Branches[branch].Tip);
-			return $"Switched to a new branch '{branch}";
+			return $"Switched to a new branch {branch}";
 		}
 
 		/// <summary>

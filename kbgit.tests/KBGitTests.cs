@@ -403,7 +403,7 @@ Log for feature/speed
 
 			var msg = repoBuilder.Git.Branches.DeleteBranch("featurebranch");
 
-			Assert.StartsWith("Deleted branch nyhed (was ", msg);
+			Assert.StartsWith("Deleted branch featurebranch (was ", msg);
 			Assert.Equal(@"* master", repoBuilder.Git.Branches.ListBranches());
 		}
 
