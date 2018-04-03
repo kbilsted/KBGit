@@ -4,6 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.0</TargetFramework>
     <RootNamespace>KbgSoft.KBGit</RootNamespace>
+    <StartupObject>KbgSoft.KBGit.Program</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>
