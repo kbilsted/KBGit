@@ -30,7 +30,7 @@ namespace KbgSoft.KBGit
 		public static readonly GrammarLine[] Config =
 		{
 			new GrammarLine("Initialize an empty repo", new[] { "init"}, (git, args) => git.InitializeRepository()),
-			new GrammarLine("Make a commit", new[] { "commit", "-m", "<message>"}, (git, args) => { git.Commit(args[2], "author", DateTime.Now, git.ScanFileSystem()); }),
+			new GrammarLine("Make a commit", new[] { "commit", "-m", "<message>"}, (git, args) => { git.Commit(args[2], "author", DateTime.Now); }),
 			new GrammarLine("Show the commit log", new[] { "log"}, (git, args) => git.Log()),
 			new GrammarLine("Create a new new branch at HEAD", new[] { "checkout", "-b", "<branchname>"}, (git, args) => git.Branches.CreateBranch(args[2])),
 			new GrammarLine("Create a new new branch at commit id", new[] { "checkout", "-b", "<branchname>", "<id>"}, (git, args) => git.Branches.CreateBranch(args[2], new Id(args[3]))),
@@ -74,7 +74,7 @@ namespace KbgSoft.KBGit
 	/// </summary>
 	public class KBGit
 	{
-		public const string KBGitFolderName = ".git";
+		public const string KbGitDataFile = ".git";
 		public string CodeFolder { get; }
 		public Storage Hd;
 		public RemotesHandling Remotes;
@@ -168,49 +168,6 @@ namespace KbgSoft.KBGit
 			return commitId;
 		}
 
-		public Id Commit(string message, string author, DateTime now, params Fileinfo[] fileinfo)
-		{
-			var blobsInCommit = fileinfo.Select(x => new
-			{
-				file = x,
-				blobid = new Id(ByteHelper.ComputeSha(x.Content)),
-				blob = new BlobNode(x.Content)
-			}).ToArray();
-
-			var treeNode = new TreeNode(blobsInCommit.Select(x => new BlobTreeLine(x.blobid, x.blob, x.file.Path)).ToArray());
-			var treeNodeId = Id.HashObject(treeNode);
-
-			var parentCommitId = Hd.Head.GetId(Hd);
-			var isFirstCommit = parentCommitId == null;
-			var commit = new CommitNode
-			{
-				Time = now,
-				Tree = treeNode,
-				TreeId = treeNodeId,
-				Author = author,
-				Message = message,
-				Parents = isFirstCommit ? new Id[0] : new[] { parentCommitId },
-			};
-
-			if (!Hd.Trees.ContainsKey(treeNodeId))
-				Hd.Trees.Add(treeNodeId, treeNode);
-
-			foreach (var blob in blobsInCommit.Where(x => !Hd.Blobs.ContainsKey(x.blobid)))
-			{
-				Hd.Blobs.Add(blob.blobid, blob.blob);
-			}
-
-			var commitId = Id.HashObject(commit);
-			Hd.Commits.Add(commitId, commit);
-
-			if (Hd.Head.IsDetachedHead())
-				Hd.Head.Update(commitId, Hd);
-			else
-				Hd.Branches[Hd.Head.Branch].Tip = commitId;
-
-			return commitId;
-		}
-
 		internal void AddOrSetBranch(string branch, Branch branchInfo)
 		{
 			if (Hd.Branches.ContainsKey(branch))
@@ -288,14 +245,6 @@ namespace KbgSoft.KBGit
 			AddOrSetBranch(branch, branchInfo);
 		}
 
-		public Fileinfo[] ScanFileSystem()
-		{
-			return new DirectoryInfo(CodeFolder).EnumerateFiles("*", SearchOption.AllDirectories)
-				.Where(x=>x.Name!=".git")
-				.Select(x => new Fileinfo(x.FullName.Substring(CodeFolder.Length), File.ReadAllText(x.FullName)))
-				.ToArray();
-		}
-
 		public List<KeyValuePair<Id, CommitNode>> GetReachableNodes(Id from, Id downTo = null)
 		{
 			var result = new List<KeyValuePair<Id, CommitNode>>();
@@ -321,17 +270,15 @@ namespace KbgSoft.KBGit
 		{
 			var entries = new DirectoryInfo(path).EnumerateFileSystemInfos("*", SearchOption.TopDirectoryOnly).ToArray();
 
-			var tree = new List<ITreeLine>();
-
-			tree.AddRange(entries.OfType<FileInfo>()
+			var lines = new List<ITreeLine>(entries.OfType<FileInfo>()
+				.Where(x => x.FullName != Path.Combine(CodeFolder, ".git"))
 				.Select(x => new { Content = File.ReadAllText(x.FullName), x.FullName })
-				.Select(x => new BlobTreeLine(new Id(ByteHelper.ComputeSha(x.Content)), new BlobNode(x.Content), x.FullName.Substring(CodeFolder.Length))));
+				.Select(x => new BlobTreeLine(new Id(ByteHelper.ComputeSha(x.Content)), new BlobNode(x.Content), x.FullName.Substring(CodeFolder.Length+1))));
 
-			tree.AddRange(entries.OfType<DirectoryInfo>()
-				.Where(x => !x.FullName.EndsWith(KBGitFolderName))
-				.Select(x => MakeTreeTreeLine(x.FullName)));
+			lines.AddRange(entries.OfType<DirectoryInfo>()
+				.Select(x => MakeTreeTreeLine(EnsurePathEndsInSlash(x.FullName))));
 
-			return tree.ToArray();
+			return lines.ToArray();
 		}
 
 		private TreeTreeLine MakeTreeTreeLine(string path)

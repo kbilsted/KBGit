@@ -39,7 +39,7 @@ namespace kbgit.tests
 			git.Branches.Checkout(git.HeadRef(1));
 			repoBuilder.AddFile("newfile", "dslfk");
 
-			var id = git.Commit("headless commit", "a", new DateTime(2010, 11, 12), git.ScanFileSystem());
+			var id = git.Commit("headless commit", "a", new DateTime(2010, 11, 12));
 
 			Assert.Equal("f4982f442bf946c3678bc68761a1da953ff1f61020311d1802167288b5514087", id.ToString());
 		}
@@ -99,7 +99,7 @@ blob door.txt",  files);
 
 			Assert.Equal(
 @"tree 1 
-tree 2 FeatureVolvo
+tree 2 FeatureVolvo\
 blob FeatureVolvo\car.txt
 blob FeatureVolvo\door.txt", files);
 		}
@@ -119,13 +119,13 @@ blob FeatureVolvo\door.txt", files);
 
 			Assert.Equal(
 @"tree 2 
-tree 3 FeatureGarden
+tree 3 FeatureGarden\
 blob FeatureGarden\shovel.txt
 blob FeatureGarden\tree.txt
-tree 2 FeatureGarden\Suburb
+tree 2 FeatureGarden\Suburb\
 blob FeatureGarden\Suburb\grass.txt
 blob FeatureGarden\Suburb\mover.txt
-tree 1 FeatureVolvo
+tree 1 FeatureVolvo\
 blob FeatureVolvo\car.txt"
 				, files);
 		}
@@ -149,14 +149,26 @@ blob FeatureVolvo\car.txt"
 			});
 
 			Assert.Equal(@"visittree 
-visittree FeatureGarden
+visittree FeatureGarden\
 visitblob FeatureGarden\shovel.txt
 visitblob FeatureGarden\tree.txt
-visittree FeatureGarden\Suburb
+visittree FeatureGarden\Suburb\
 visitblob FeatureGarden\Suburb\grass.txt
-visittree FeatureVolvo
+visittree FeatureVolvo\
 visitblob FeatureVolvo\car.txt
 ", buf);
+		}
+
+		[Fact]
+		public void Ensure_internal_git_file_is_skipped()
+		{
+			var git = repoBuilder.EmptyRepo().AddFile("babe.txt").Git;
+			git.StoreState();
+
+			var files = FileSystemScanFolder(git);
+
+			Assert.Equal(@"tree 1 
+blob babe.txt", files);
 		}
 	}
 
@@ -349,7 +361,10 @@ Log for feature/speed
 			repoBuilder.NewBranch("featurebranch")
 				.AddFile("b.txt", "version 1 b")
 				.Commit();
-			IEnumerable<string> FilesInRepo() => repoBuilder.Git.ScanFileSystem().Select(x => x.Path);
+			IEnumerable<string> FilesInRepo() => repoBuilder.Git
+				.FileSystemScanSubFolder(repoBuilder.Git.CodeFolder)
+				.OfType<BlobTreeLine>()
+				.Select(x => x.Path);
 
 			Assert.Equal(new[] {"a.txt", "b.txt"}, FilesInRepo());
 
