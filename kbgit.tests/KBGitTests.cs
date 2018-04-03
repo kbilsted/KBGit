@@ -41,7 +41,7 @@ namespace kbgit.tests
 
 			var id = git.Commit("headless commit", "a", new DateTime(2010, 11, 12), git.ScanFileSystem());
 
-			Assert.Equal("2ef282b36b6b71420c33b234ca74c4f185dc88948f6cbfa6164d01c5b2993448", id.ToString());
+			Assert.Equal("f4982f442bf946c3678bc68761a1da953ff1f61020311d1802167288b5514087", id.ToString());
 		}
 
 		[Fact]
@@ -258,7 +258,7 @@ Log for master
 
 			Assert.Equal(@"
 Log for master
-* 06cd57d - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
+* 06cd57d8d2feececc9eb48adda4cea5b57482324267f1e9632c16079ac6d793e - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
 ", repoBuilder.Git.Log());
 		}
 
@@ -272,11 +272,12 @@ Log for master
 			repoBuilder.AddFile("a.txt", "changed a...");
 			repoBuilder.Git.Commit("Changed a.txt", "kasper graversen", new DateTime(2018, 3, 2, 13, 24, 34));
 
+			var actual = repoBuilder.Git.Log();
 			Assert.Equal(@"
 Log for master
-* dd30447 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
-* 06cd57d - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
-", repoBuilder.Git.Log());
+* dd3044753fdb212c9248da29005a6d4765e3bbe302efff96a9321bf8ea710b83 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
+* 06cd57d8d2feececc9eb48adda4cea5b57482324267f1e9632c16079ac6d793e - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
+", actual);
 		}
 
 		[Fact]
@@ -293,14 +294,15 @@ Log for master
 				.AddFile("a.txt", "speedup!")
 				.Git.Commit("Speedup a.txt", "kasper graversen", new DateTime(2018, 4, 3, 15, 26, 37));
 
+			var actual = repoBuilder.Git.Log();
 			Assert.Equal(@"
 Log for master
-* dd30447 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
-* 06cd57d - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
+* dd3044753fdb212c9248da29005a6d4765e3bbe302efff96a9321bf8ea710b83 - Changed a.txt (2018/03/02 01:24:34) <kasper graversen> 
+* 06cd57d8d2feececc9eb48adda4cea5b57482324267f1e9632c16079ac6d793e - Add a.txt (2018/03/01 12:22:33) <kasper graversen> 
 
 Log for feature/speed
-* fafcd20 - Speedup a.txt (2018/04/03 03:26:37) <kasper graversen> 
-", repoBuilder.Git.Log());
+* fafcd20734eda4c9849aea8cb831c87f225909e32686637c54d3896513ecfca0 - Speedup a.txt (2018/04/03 03:26:37) <kasper graversen> 
+", actual);
 		}
 	}
 
@@ -431,14 +433,15 @@ Log for feature/speed
 
 			new GitNetworkClient().PullBranch(localGit.Hd.Remotes.First(), "master", localGit);
 
+			var actual = localGit.Log();
 			Assert.Equal(@"
 Log for master
 
 Log for origin/master
-* d2c19da - Add a2 (2017/03/03 03:03:03) <kasper> 
-* 5b65531 - Add b (2017/02/02 02:02:02) <kasper> 
-* 27047ec - Add a (2017/01/01 01:01:01) <kasper> 
-", localGit.Log());
+* e7ea1966e7cb9b96e956a53d4a7042aa4dcc69720363dd928087af50a8c26b32 - Add a2 (2017/03/03 03:03:03) <kasper> 
+* ed0ea7ea22cbaf8b34ee711974568d42853aff967fdb8c21fac93788d8e8e954 - Add b (2017/02/02 02:02:02) <kasper> 
+* f0800442b12313bbac440b9ae0aef5b2c1978c95e8ccaf4197d6816bd29bf673 - Add a (2017/01/01 01:01:01) <kasper> 
+", actual);
 			gitServer.Abort();
 		}
 
@@ -455,12 +458,13 @@ Log for origin/master
 			var commits = localGit.GetReachableNodes(branch.Tip).ToArray();
 			new GitNetworkClient().PushBranch(localGit.Hd.Remotes.First(), "master", branch, null, commits);
 
+			var actual = remoteGit.Log();
 			Assert.Equal(@"
 Log for master
-* d2c19da - Add a2 (2017/03/03 03:03:03) <kasper> 
-* 5b65531 - Add b (2017/02/02 02:02:02) <kasper> 
-* 27047ec - Add a (2017/01/01 01:01:01) <kasper> 
-", remoteGit.Log());
+* e7ea1966e7cb9b96e956a53d4a7042aa4dcc69720363dd928087af50a8c26b32 - Add a2 (2017/03/03 03:03:03) <kasper> 
+* ed0ea7ea22cbaf8b34ee711974568d42853aff967fdb8c21fac93788d8e8e954 - Add b (2017/02/02 02:02:02) <kasper> 
+* f0800442b12313bbac440b9ae0aef5b2c1978c95e8ccaf4197d6816bd29bf673 - Add a (2017/01/01 01:01:01) <kasper> 
+", actual);
 			gitServer.Abort();
 		}
 

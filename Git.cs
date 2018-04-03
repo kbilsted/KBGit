@@ -234,7 +234,7 @@ namespace KbgSoft.KBGit
 				foreach (var comit in nodes.OrderByDescending(x => x.Value.Time))
 				{
 					var commitnode = comit.Value;
-					var key = comit.Key.ToString().Substring(0, 7);
+					var key = comit.Key.ToString();
 					var msg = commitnode.Message.Substring(0, Math.Min(40, commitnode.Message.Length));
 					var author = $"{commitnode.Author}";
 
@@ -340,8 +340,10 @@ namespace KbgSoft.KBGit
 			var treenode = new TreeNode(folderentries);
 			var id = Id.HashObject(folderentries);
 
-			return new TreeTreeLine(id, treenode, path.Substring(CodeFolder.Length));
+			return new TreeTreeLine(id, treenode, EnsurePathEndsInSlash(path).Substring(CodeFolder.Length+1));
 		}
+
+		public string EnsurePathEndsInSlash(string folderPath) => folderPath.EndsWith(Path.DirectorySeparatorChar) ? folderPath : folderPath + Path.DirectorySeparatorChar;
 	}
 
 	public class BranchHandling
