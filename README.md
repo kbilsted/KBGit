@@ -45,12 +45,15 @@ KBGit..what?? My initials are *K.B.G.* - hence the name KBGit :-)
 
 ## Planned work 
 	
- * sub-folder support (90% done)
- * logging (graphical)
+ * git log 
+   * graphical (--graph)
+   * patch (-p)
+   * "less" implementation
  * git INDEX rather than scanning files
  * blob compression
- * diff'er to show changes to files - and select changes...
-
+ * diff'er to show changes to files 
+   * and select changes to index...
+ 
 
 I will blog about the implementation on [http://firstclassthoughts.co.uk/](http://firstclassthoughts.co.uk/) 
 when the implementation has stabilized. Comments etc. are much welcommed.
