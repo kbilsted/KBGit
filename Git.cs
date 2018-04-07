@@ -43,7 +43,7 @@ namespace KbgSoft.KBGit
 			new GrammarLine("Push code", new[] { "push", "<remote-name>", "<branch>"}, (git, args) => { new GitNetworkClient().PushBranch(git.Hd.Remotes.First(x => x.Name == args[1]), args[2], git.Hd.Branches[args[2]], null, git.GetReachableNodes(git.Hd.Branches[args[2]].Tip).ToArray()); }),
 			new GrammarLine("Clone code from other server", new[] { "clone", "<url>", "<branch>"}, (git, args) => { new GitNetworkClient().CloneBranch(git, "origin", args[1], args[2]); }),
 			new GrammarLine("List remotes", new[] { "remote", "-v"}, (git, args) => { git.Remotes.List(); }),
-			new GrammarLine("Add remote", new[] { "remote", "add", "<remote-name>", "<url>"}, (git, args) => { git.Remotes.Add(new Remote(){Name = args[2], Url = new Uri(args[3])}); }),
+			new GrammarLine("Add remote", new[] { "remote", "add", "<remote-name>", "<url>"}, (git, args) => { git.Remotes.Remotes.Add(new Remote(){Name = args[2], Url = new Uri(args[3])}); }),
 			new GrammarLine("Remove remote", new[] { "remote", "rm", "<remote-name>"}, (git, args) => { git.Remotes.Remove(args[2]); }),
 		};
 
@@ -489,11 +489,6 @@ namespace KbgSoft.KBGit
 		public string List() => string.Join("\r\n", Remotes.Select(x => $"{x.Name,-12} {x.Url}"));
 
 		/// <summary>
-		/// Add a remote
-		/// </summary>
-		public void Add(Remote r) => Remotes.Add(r);
-
-		/// <summary>
 		/// Remove a remote
 		/// </summary>
 		public void Remove(string name) => Remotes.RemoveAll(x => x.Name == name);
@@ -659,7 +654,7 @@ namespace KbgSoft.KBGit
 		public void CloneBranch(KBGit git, string remotename, string url, string branch)
 		{
 			git.InitializeRepository();
-			git.Remotes.Add(new Remote { Name = remotename, Url = new Uri(url)});
+			git.Remotes.Remotes.Add(new Remote { Name = remotename, Url = new Uri(url)});
 			var tip = PullBranch(git.Remotes.Remotes.Single(), branch, git);
 			git.Branches.ResetBranchPointer("master", tip);
 			git.Branches.Checkout("master");
