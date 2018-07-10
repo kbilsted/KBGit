@@ -60,3 +60,6 @@ when the implementation has stabilized. Comments etc. are much welcommed.
 
 For now the reading guide is to just read the `Git.cs` file. The main classes are the `CommandLineHandling` which is the facade of the implementation. 
 The first class `KBGit` holds or redirects the main functionalities of Git. For now, just browse around with outset in those classes.
+
+Articles
+  * Command line parsing: [http://firstclassthoughts.co.uk/Articles/Readability/PreferDeclarativeCodeOverImperativeCode.html](http://firstclassthoughts.co.uk/Articles/Readability/PreferDeclarativeCodeOverImperativeCode.html)
