@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
 namespace KbgSoft.KBGit2
@@ -32,13 +33,17 @@ namespace KbgSoft.KBGit2
         /// https://mincong.io/2018/04/28/git-index/#:~:text=The%20index%20is%20a%20binary,Git%3A%20they%20are%20used%20interchangeably.
         /// </summary>
         /// <param name="pattern"></param>
-        public void Add(string pattern)
+        public void Stage()
         {
-            WriteIndex(ReadIndex()
-                .Concat(Directory.EnumerateFiles(RootPath)
-                    .Select(x => $"{WriteObjectToObjectStore(x)} {x.Substring(RootPath.Length)}"))
-                .Distinct()
-                .OrderBy(x => x));
+            var stage = Directory.EnumerateFiles(RootPath)
+                .ToDictionary(x => x.Substring(RootPath.Length), x => WriteObjectToObjectStore(x));
+            ReadIndex()
+                .Select(x => x.Split(' '))
+                .Where(x=> !stage.ContainsKey(x[1]))
+                .ToList().ForEach(x => stage.Add(x[1], x[0]));
+
+            WriteIndex(stage.OrderBy(x => x.Key)
+                .Select(x => $"{x.Value} {x.Key}"));
         }
 
         public string[] ReadIndex() => File.ReadAllLines(Path.Combine(RootPath, ".git/index"));
@@ -71,8 +76,6 @@ namespace KbgSoft.KBGit2
         {
             return "";
         }
-
-        
     }
 
     public static class ByteHelper
