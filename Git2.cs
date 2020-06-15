@@ -35,15 +35,12 @@ namespace KbgSoft.KBGit2
         /// <param name="pattern"></param>
         public void Stage()
         {
-            var stage = Directory.EnumerateFiles(RootPath)
-                .ToDictionary(x => x.Substring(RootPath.Length), x => WriteObjectToObjectStore(x));
-            ReadIndex()
-                .Select(x => x.Split(' '))
-                .Where(x=> !stage.ContainsKey(x[1]))
-                .ToList().ForEach(x => stage.Add(x[1], x[0]));
+            var stage = ReadIndex().Select(x => x.Split(' ')).ToDictionary(x => x[1], x => x[0]);
 
-            WriteIndex(stage.OrderBy(x => x.Key)
-                .Select(x => $"{x.Value} {x.Key}"));
+            Directory.EnumerateFiles(RootPath).ToList()
+                .ForEach(x => stage[x.Substring(RootPath.Length)] = WriteObjectToObjectStore(x));
+
+            WriteIndex(stage.OrderBy(x => x.Key).Select(x => $"{x.Value} {x.Key}"));
         }
 
         public string[] ReadIndex() => File.ReadAllLines(Path.Combine(RootPath, ".git/index"));
