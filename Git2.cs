@@ -13,22 +13,22 @@ namespace KbgSoft.KBGit2
         public readonly string RootPath;
         readonly ObjectDb objectDb;
         readonly BranchHandling branchHandling;
-        readonly string HeadFilePath;
+        readonly HeadHandling headHandling;
 
         public Git2(string rootPath)
         {
             RootPath = rootPath;
             objectDb = new ObjectDb(rootPath);
             branchHandling = new BranchHandling(rootPath);
-            HeadFilePath = Path.Combine(RootPath, ".git/HEAD");
+            headHandling = new HeadHandling(rootPath, branchHandling);
         }
 
         public string Init()
         {
             new DirectoryInfo(Path.Combine(RootPath, ".git")).Create();
             branchHandling.Init();
+            headHandling.Init();
             File.WriteAllText(Path.Combine(RootPath, ".git/index"), "");
-            File.WriteAllText(HeadFilePath, "ref: refs/heads/master");
             objectDb.Init();
             return "Initialized empty Git repository";
         }
@@ -53,26 +53,12 @@ namespace KbgSoft.KBGit2
 
         public void WriteIndex(IEnumerable<string> content) => File.WriteAllLines(Path.Combine(RootPath, ".git/index"), content);
 
-        public string ReadHead() => IsHeadRef() ? branchHandling.ReadBranchHash(ReadHeadRef()) : File.ReadAllText(HeadFilePath);
-        
-        public string ReadHeadRef() => File.ReadAllText(HeadFilePath).Substring("ref: refs/heads/".Length);
-        
-        public bool IsHeadRef() => File.ReadAllText(HeadFilePath).StartsWith("ref: ");
-        
-        void WriteHead(string hash)
-        {
-            if (IsHeadRef())
-                branchHandling.WriteBranchHash(ReadHeadRef(), hash);
-            else File.WriteAllText(HeadFilePath, hash);
-        }
-
-        void WriteHeadChangeBranch(string branchName) => File.WriteAllText(HeadFilePath, $"ref: refs/heads/{branchName}");
-
+ 
         public string Commit(string commitMessage, string author, DateTime now)
         {
-            var parent = IsHeadRef() && !branchHandling.Exists(ReadHeadRef()) 
+            var parent = headHandling.IsHeadRef() && !branchHandling.Exists(headHandling.ReadHeadRef()) 
                 ? "" 
-                : $"\r\nparent {ReadHead()}\r\n";
+                : $"\r\nparent {headHandling.ReadHead()}\r\n";
 
             var hash = WriteIndexToFileSystem();
             var commitId = objectDb.WriteContent(@$"tree {hash}{parent}
@@ -81,7 +67,7 @@ committer {author} {now.Ticks} {now:zzz}
 
 {commitMessage}");
 
-            WriteHead(commitId);
+            headHandling.WriteHead(commitId);
 
             return commitId;
         }
@@ -109,7 +95,7 @@ committer {author} {now.Ticks} {now:zzz}
 
         public string CreateBranch(string branchName)
         {
-            return branchHandling.Checkout(branchName, ReadHead()) == null
+            return branchHandling.Checkout(branchName, headHandling.ReadHead()) == null
                 ? $"Switched to branch '{branchName}'"
                 : $"Switched to a new branch '{branchName}'";
         }
@@ -152,7 +138,7 @@ committer {author} {now.Ticks} {now:zzz}
 
     public class BranchHandling
     {
-        public readonly string RootPath;
+        readonly string RootPath;
 
         public BranchHandling(string rootPath)
         {
@@ -184,6 +170,37 @@ committer {author} {now.Ticks} {now:zzz}
         public string ReadBranchHash(string branchName) => File.ReadAllText(GetFilePath(branchName));
 
         public void WriteBranchHash(string branchName, string hash) => WriteToFile(branchName, hash);
+    }
+
+    public class HeadHandling
+    {
+        readonly string HeadFilePath;
+
+        readonly BranchHandling branchHandling;
+
+        public HeadHandling(string rootPath, BranchHandling branchHandling)
+        {
+            HeadFilePath = Path.Combine(rootPath, ".git/HEAD");
+
+            this.branchHandling = branchHandling;
+        }
+
+        public void Init() => File.WriteAllText(HeadFilePath, "ref: refs/heads/master");
+
+        public string ReadHead() => IsHeadRef() ? branchHandling.ReadBranchHash(ReadHeadRef()) : File.ReadAllText(HeadFilePath);
+
+        public string ReadHeadRef() => File.ReadAllText(HeadFilePath).Substring("ref: refs/heads/".Length);
+
+        public bool IsHeadRef() => File.ReadAllText(HeadFilePath).StartsWith("ref: ");
+
+        public void WriteHead(string hash)
+        {
+            if (IsHeadRef())
+                branchHandling.WriteBranchHash(ReadHeadRef(), hash);
+            else File.WriteAllText(HeadFilePath, hash);
+        }
+
+        void WriteHeadChangeBranch(string branchName) => File.WriteAllText(HeadFilePath, $"ref: refs/heads/{branchName}");
     }
 
     public static class ByteHelper
