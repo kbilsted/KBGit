@@ -12,20 +12,23 @@ namespace KbgSoft.KBGit2
     {
         public readonly string RootPath;
         readonly ObjectDb objectDb;
+        readonly BranchHandling branchHandling;
+        readonly string HeadFilePath;
 
         public Git2(string rootPath)
         {
             RootPath = rootPath;
             objectDb = new ObjectDb(rootPath);
+            branchHandling = new BranchHandling(rootPath);
+            HeadFilePath = Path.Combine(RootPath, ".git/HEAD");
         }
 
         public string Init()
         {
             new DirectoryInfo(Path.Combine(RootPath, ".git")).Create();
-            new DirectoryInfo(Path.Combine(RootPath, ".git/refs/heads")).Create();
-
+            branchHandling.Init();
             File.WriteAllText(Path.Combine(RootPath, ".git/index"), "");
-            File.WriteAllText(Path.Combine(RootPath, ".git/HEAD"), "ref: refs/heads/master");
+            File.WriteAllText(HeadFilePath, "ref: refs/heads/master");
             objectDb.Init();
             return "Initialized empty Git repository";
         }
@@ -47,40 +50,68 @@ namespace KbgSoft.KBGit2
         }
 
         public string[] ReadIndex() => File.ReadAllLines(Path.Combine(RootPath, ".git/index"));
-        
+
         public void WriteIndex(IEnumerable<string> content) => File.WriteAllLines(Path.Combine(RootPath, ".git/index"), content);
+
+        public string ReadHead() => IsHeadRef() ? branchHandling.ReadBranchHash(ReadHeadRef()) : File.ReadAllText(HeadFilePath);
+        
+        public string ReadHeadRef() => File.ReadAllText(HeadFilePath).Substring("ref: refs/heads/".Length);
+        
+        public bool IsHeadRef() => File.ReadAllText(HeadFilePath).StartsWith("ref: ");
+        
+        void WriteHead(string hash)
+        {
+            if (IsHeadRef())
+                branchHandling.WriteBranchHash(ReadHeadRef(), hash);
+            else File.WriteAllText(HeadFilePath, hash);
+        }
+
+        void WriteHeadChangeBranch(string branchName) => File.WriteAllText(HeadFilePath, $"ref: refs/heads/{branchName}");
 
         public string Commit(string commitMessage, string author, DateTime now)
         {
+            var parent = IsHeadRef() && !branchHandling.Exists(ReadHeadRef()) 
+                ? "" 
+                : $"\r\nparent {ReadHead()}\r\n";
+
             var hash = WriteIndexToFileSystem();
-            return objectDb.WriteContent(@$"tree {hash}
-parent nil
+            var commitId = objectDb.WriteContent(@$"tree {hash}{parent}
 author {author} {now.Ticks} {now:zzz}
 committer {author} {now.Ticks} {now:zzz}
 
 {commitMessage}");
+
+            WriteHead(commitId);
+
+            return commitId;
         }
 
         public string WriteIndexToFileSystem()
         {
-            var lines = ReadIndex().Select(x => (hash: x.Substring(0, 64), path: x.Substring(64).Split('/').ToList()));
+            var lines = ReadIndex().Select(x => (hash: x.Substring(0, 64), path: x.Substring(64).Split('/').ToArray()));
 
             return WriteIndexToFileSystem(lines);
         }
 
-        private string WriteIndexToFileSystem(IEnumerable<(string hash, List<string> path)> lines)
+        private string WriteIndexToFileSystem(IEnumerable<(string hash, string[] path)> lines)
         {
             var valueTuples = lines.ToArray();
-            var fileLines = valueTuples.Where(x => x.path.Count == 1).Select(x => $"blob {x.hash}      {x.path.Single()}").ToArray();
-            var folderLines = valueTuples.Where(x => x.path.Count > 1)
-                .ToLookup(x => x.path.First())
-                .Select(group => $"tree {WriteIndexToFileSystem(group.Select(x=>(hash:x.hash, path:x.path.GetRange(1,x.path.Count-1))))}     {group.Key}");
+
+            var fileLines = valueTuples.Where(x => x.path.Length == 1)
+                .Select(x => $"blob {x.hash}      {x.path.Single()}");
+
+            var folderLines = valueTuples.Where(x => x.path.Length > 1)
+                .ToLookup(x => x.path.First(), x => (x.hash, path: x.path.Skip(1).ToArray()))
+                .Select(x => $"tree {WriteIndexToFileSystem(x)}     {x.Key}");
+
             return objectDb.WriteContent(string.Join("\r\n", fileLines.Concat(folderLines)));
         }
 
-        public string CreateBranch(string name)
+        public string CreateBranch(string branchName)
         {
-            return "";
+            return branchHandling.Checkout(branchName, ReadHead()) == null
+                ? $"Switched to branch '{branchName}'"
+                : $"Switched to a new branch '{branchName}'";
         }
 
         /// <summary>
@@ -117,6 +148,42 @@ committer {author} {now.Ticks} {now:zzz}
         public string WriteObjectFromFilepath(string path) => WriteContent(File.ReadAllText(path));
 
         public string ReadObject(string hash) => File.ReadAllText(Path.Combine(RootPath, $".git/objects/{hash}"));
+    }
+
+    public class BranchHandling
+    {
+        public readonly string RootPath;
+
+        public BranchHandling(string rootPath)
+        {
+            RootPath = rootPath;
+        }
+
+        public void Init() => Directory.CreateDirectory(GetFilePath(""));
+
+        string GetFilePath(string branchName) => Path.Combine(RootPath, ".git/refs/heads/", branchName);
+
+        void WriteToFile(string branchName, string hash)
+        {
+            if (branchName.Contains('/'))
+                Directory.CreateDirectory(Path.GetDirectoryName(GetFilePath(branchName)));
+            
+            File.WriteAllText(GetFilePath(branchName), hash);
+        }
+
+        public string Checkout(string branchName, string? hash)
+        {
+            if (Exists(branchName))
+                return ReadBranchHash(branchName);
+            WriteToFile(branchName, hash);
+            return null;
+        }
+
+        public bool Exists(string branchName) => File.Exists(GetFilePath(branchName));
+
+        public string ReadBranchHash(string branchName) => File.ReadAllText(GetFilePath(branchName));
+
+        public void WriteBranchHash(string branchName, string hash) => WriteToFile(branchName, hash);
     }
 
     public static class ByteHelper

@@ -108,7 +108,6 @@ namespace kbgit.tests2
 
             var commitHash = git.Commit("commit message", "Clarke Kent", new DateTime(2020, 1, 2, 3, 4, 5));
             git.CatFile(commitHash).Should().Be(@$"tree a06f8f314a671df7ea4ffd0c1d98c69b6d84fae50bf0ff3e02d60cf3564f6d23
-parent nil
 author Clarke Kent 637135310450000000 +01:00
 committer Clarke Kent 637135310450000000 +01:00
 
@@ -119,7 +118,6 @@ commit message");
             git.CatFile("9834876dcfb05cb167a5c24953eba58c4ac89b1adf57f28f2f9d09af107ee8f0").Should()
                 .Be("aaa");
         }
-
 
         [Fact]
         public void When_comitting_subfolder_files_Then_store_commit_info_and_fileinfo()
@@ -134,7 +132,6 @@ commit message");
 
             var commitHash = git.Commit("commit message", "Clarke Kent", new DateTime(2020, 1, 2, 3, 4, 5));
             git.CatFile(commitHash).Should().Be(@$"tree 64af0aefbec30845dddd56643c23e9148758d8fbd34fe741f0643cb33c8abfca
-parent nil
 author Clarke Kent 637135310450000000 +01:00
 committer Clarke Kent 637135310450000000 +01:00
 
@@ -153,6 +150,36 @@ blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      d.txt
             git.CatFile("b70a5f51331663558c5326803e159cb010287388e9a8fb8ecdd36b6565c41182").Should().Be(
                 @"blob 64daa44ad493ff28a96effab6e77f1732a3d97d83241581b37dbd70a7a4900fe      c.txt");
         }
+
+
+        [Fact]
+        public void When_comitting_file_Then_index_is_unchanged()
+        {
+            var git = builder.InitEmptyRepo()
+                .WithFile("a.txt", "aaa")
+                .Stage()
+                .Build();
+
+            var indexBefore = builder.ReadHEAD();
+
+            var commitHash = git.Commit("commit message", "Clarke Kent", new DateTime(2020, 1, 2, 3, 4, 5));
+
+            indexBefore.Should().Be(builder.ReadHEAD());
+        }
+
+
+        [Fact]
+        public void When_comitting_Then_branch_is_updated()
+        {
+            var git = builder.InitEmptyRepo()
+                .WithFile("a.txt", "aaa")
+                .Stage()
+                .Build();
+
+            var commitHash = git.Commit("commit message", "Clarke Kent", new DateTime(2020, 1, 2, 3, 4, 5));
+
+            builder.ReadBranch("master").Should().Be(commitHash);
+                    }
 
         [Fact]
         public void When_list_branches_Then_return_empty()
@@ -209,6 +236,16 @@ blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      d.txt
             File.WriteAllText(Path.Combine(TestPath, path), newContent);
         }
 
+        public string ReadHEAD()
+        {
+            return File.ReadAllText(Path.Combine(TestPath, ".git/HEAD"));
+        }
+
+
+        public string ReadBranch(string branchName)
+        {
+            return File.ReadAllText(Path.Combine(TestPath, ".git/refs/heads/", branchName));
+        }
         public Git2 Build()
         {
             return Git;
