@@ -9,6 +9,7 @@ namespace kbgit.tests2
     public class Git2Tests
     {
         private readonly RepoBuilder builder = new RepoBuilder();
+        readonly DateTime date = new DateTime(2020, 1, 2, 3, 4, 5);
 
 
         [Fact]
@@ -106,7 +107,7 @@ namespace kbgit.tests2
                 .Stage()
                 .Build();
 
-            var commitHash = git.Commit("commit message", "Clarke Kent", new DateTime(2020, 1, 2, 3, 4, 5));
+            var commitHash = git.Commit("commit message", "Clarke Kent", date);
             git.CatFile(commitHash).Should().Be(@$"tree a06f8f314a671df7ea4ffd0c1d98c69b6d84fae50bf0ff3e02d60cf3564f6d23
 author Clarke Kent 637135310450000000 +01:00
 committer Clarke Kent 637135310450000000 +01:00
@@ -130,7 +131,7 @@ commit message");
                 .Stage()
                 .Build();
 
-            var commitHash = git.Commit("commit message", "Clarke Kent", new DateTime(2020, 1, 2, 3, 4, 5));
+            var commitHash = git.Commit("commit message", "Clarke Kent", date);
             git.CatFile(commitHash).Should().Be(@$"tree 64af0aefbec30845dddd56643c23e9148758d8fbd34fe741f0643cb33c8abfca
 author Clarke Kent 637135310450000000 +01:00
 committer Clarke Kent 637135310450000000 +01:00
@@ -151,7 +152,6 @@ blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      d.txt
                 @"blob 64daa44ad493ff28a96effab6e77f1732a3d97d83241581b37dbd70a7a4900fe      c.txt");
         }
 
-
         [Fact]
         public void When_comitting_file_Then_index_is_unchanged()
         {
@@ -162,11 +162,10 @@ blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      d.txt
 
             var indexBefore = builder.ReadHEAD();
 
-            var commitHash = git.Commit("commit message", "Clarke Kent", new DateTime(2020, 1, 2, 3, 4, 5));
+            var commitHash = git.Commit("commit message", "Clarke Kent", date);
 
             indexBefore.Should().Be(builder.ReadHEAD());
         }
-
 
         [Fact]
         public void When_comitting_Then_branch_is_updated()
@@ -176,10 +175,43 @@ blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      d.txt
                 .Stage()
                 .Build();
 
-            var commitHash = git.Commit("commit message", "Clarke Kent", new DateTime(2020, 1, 2, 3, 4, 5));
+            var commitHash = git.Commit("commit message", "Clarke Kent", date);
 
             builder.ReadBranch("master").Should().Be(commitHash);
-                    }
+        }
+
+        [Fact]
+        public void When_comitting_with_nothing_staged_Then_then_fail()
+        {
+            var git = builder.InitEmptyRepo()
+                .WithFile("a.txt", "aaa")
+                .Stage()
+                .Commit()
+                .ChangeFile("a.txt", "bbb")
+                .Build();
+
+            Action code = () => git.Commit("message 2", "Clarke", date);
+
+            code.Should().Throw<Exception>().WithMessage("nothing to commit, working tree clean");
+        }
+
+
+        [Fact]
+        public void When_comitting_Then_the_parent_is_referred_in_commit()
+        {
+            var git = builder.InitEmptyRepo()
+                .WithFile("a.txt", "aaa")
+                .Stage()
+                .Build();
+            var commitHash1 = git.Commit("message", "Clarke", date);
+            builder.ChangeFile("a.txt", "bbb");
+            git.Stage();
+
+            var commitHash2 = git.Commit("message 2", "Clarke", date);
+
+            git.CatFile(commitHash2).Should().Contain(commitHash1);
+            builder.ReadBranch("master").Should().Be(commitHash2);
+        }
 
         [Fact]
         public void When_list_branches_Then_return_empty()
@@ -231,9 +263,10 @@ blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      d.txt
             return this;
         }
 
-        public void ChangeFile(string path, string newContent)
+        public RepoBuilder ChangeFile(string path, string newContent)
         {
             File.WriteAllText(Path.Combine(TestPath, path), newContent);
+            return this;
         }
 
         public string ReadHEAD()

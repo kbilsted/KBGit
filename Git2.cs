@@ -61,6 +61,10 @@ namespace KbgSoft.KBGit2
                 : $"\r\nparent {headHandling.ReadHead()}\r\n";
 
             var hash = WriteIndexToFileSystem();
+
+            if (parent != "" && objectDb.ReadObject(headHandling.ReadHead()).Contains($"tree {hash}"))
+                throw new Exception("nothing to commit, working tree clean");
+
             var commitId = objectDb.WriteContent(@$"tree {hash}{parent}
 author {author} {now.Ticks} {now:zzz}
 committer {author} {now.Ticks} {now:zzz}
