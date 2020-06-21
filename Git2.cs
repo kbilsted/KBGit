@@ -39,51 +39,46 @@ namespace KbgSoft.KBGit2
         /// </summary>
         public void Stage()
         {
-            var stage = ReadIndex().Select(x => x.Split(' ')).ToDictionary(x => x[1], x => x[0]);
+            var pathAndHash = ReadIndex().Select(x => x.Split(' ')).ToDictionary(x => x[1], x => x[0]);
 
             Directory.EnumerateFiles(RootPath, "*", SearchOption.AllDirectories)
                 .Select(x => new { fullPath = x, relPath = x.Substring(RootPath.Length).Replace('\\', '/') })
                 .Where(x => !x.relPath.StartsWith(".git"))
-                .ToList().ForEach(x => stage[x.relPath] = objectDb.WriteObjectFromFilepath(x.fullPath));
+                .ToList().ForEach(x => pathAndHash[x.relPath] = objectDb.WriteObjectFromFilepath(x.fullPath));
 
-            WriteIndex(stage.OrderBy(x => x.Key).Select(x => $"{x.Value} {x.Key}"));
+            WriteIndex(pathAndHash.OrderBy(x => x.Key).Select(x => $"{x.Value} {x.Key}"));
         }
 
         public string[] ReadIndex() => File.ReadAllLines(Path.Combine(RootPath, ".git/index"));
 
         public void WriteIndex(IEnumerable<string> content) => File.WriteAllLines(Path.Combine(RootPath, ".git/index"), content);
 
- 
-        public string Commit(string commitMessage, string author, DateTime now)
+        public Id Commit(string commitMessage, string author, DateTime now)
         {
-            var parent = headHandling.IsHeadRef() && !branchHandling.Exists(headHandling.ReadHeadRef()) 
-                ? "" 
-                : $"\r\nparent {headHandling.ReadHead()}\r\n";
+            var commit = new Commit { Author = author, CommitMessage = commitMessage, Time = now, Content = WriteIndexToFileSystem() };
 
-            var hash = WriteIndexToFileSystem();
+            if (headHandling.ReadHead() != "")
+            {
+                if (objectDb.ReadObject(headHandling.ReadHead()).Contains($"tree {commit.Content}"))
+                    throw new Exception("nothing to commit, working tree clean");
 
-            if (parent != "" && objectDb.ReadObject(headHandling.ReadHead()).Contains($"tree {hash}"))
-                throw new Exception("nothing to commit, working tree clean");
+                commit.Parents.Add(headHandling.ReadHead());
+            }
 
-            var commitId = objectDb.WriteContent(@$"tree {hash}{parent}
-author {author} {now.Ticks} {now:zzz}
-committer {author} {now.Ticks} {now:zzz}
-
-{commitMessage}");
-
+            var commitId = objectDb.WriteContent(commit.CreateCommitNode());
             headHandling.WriteHead(commitId);
 
             return commitId;
         }
 
-        public string WriteIndexToFileSystem()
+        public Id WriteIndexToFileSystem()
         {
-            var lines = ReadIndex().Select(x => (hash: x.Substring(0, 64), path: x.Substring(64).Split('/').ToArray()));
+            var lines = ReadIndex().Select(x => (hash: x.Substring(0, 64).ToId(), path: x.Substring(64).Split('/').ToArray()));
 
             return WriteIndexToFileSystem(lines);
         }
 
-        private string WriteIndexToFileSystem(IEnumerable<(string hash, string[] path)> lines)
+        private Id WriteIndexToFileSystem(IEnumerable<(Id hash, string[] path)> lines)
         {
             var valueTuples = lines.ToArray();
 
@@ -94,14 +89,15 @@ committer {author} {now.Ticks} {now:zzz}
                 .ToLookup(x => x.path.First(), x => (x.hash, path: x.path.Skip(1).ToArray()))
                 .Select(x => $"tree {WriteIndexToFileSystem(x)}     {x.Key}");
 
-            return objectDb.WriteContent(string.Join("\r\n", fileLines.Concat(folderLines)));
+            return objectDb.WriteContent(fileLines.Concat(folderLines).StringJoin("\r\n"));
         }
 
-        public string CreateBranch(string branchName)
+        public string CheckOutBranch(string branchName)
         {
-            return branchHandling.Checkout(branchName, headHandling.ReadHead()) == null
-                ? $"Switched to branch '{branchName}'"
-                : $"Switched to a new branch '{branchName}'";
+            var result = branchHandling.Checkout(branchName, headHandling.ReadHead());
+            headHandling.WriteHeadChangeBranch(branchName);
+
+            return $"Switched to a {(result == null ? "" : "new ")} branch '{branchName}'";
         }
 
         /// <summary>
@@ -109,10 +105,12 @@ committer {author} {now.Ticks} {now:zzz}
         /// </summary>
         public string ListBranches()
         {
-            return "";
+            if (headHandling.IsHeadRef())
+                return branchHandling.ListBranches(headHandling.ReadHeadBranchName());
+            return branchHandling.ListBranches(null);
         }
 
-        public string CatFile(string hash) => objectDb.ReadObject(hash);
+        public string? CatFile(Id hash) => objectDb.ReadObject(hash);
     }
 
     public class ObjectDb
@@ -126,7 +124,7 @@ committer {author} {now.Ticks} {now:zzz}
 
         public void Init() => new DirectoryInfo(Path.Combine(RootPath, ".git/objects")).Create();
 
-        public string WriteContent(string content)
+        public Id WriteContent(string content)
         {
             var bytes = Encoding.UTF8.GetBytes(content);
             var hash = ByteHelper.ComputeSha(bytes);
@@ -137,7 +135,7 @@ committer {author} {now.Ticks} {now:zzz}
 
         public string WriteObjectFromFilepath(string path) => WriteContent(File.ReadAllText(path));
 
-        public string ReadObject(string hash) => File.ReadAllText(Path.Combine(RootPath, $".git/objects/{hash}"));
+        public string? ReadObject(Id hash) => hash == "" ? null : File.ReadAllText(Path.Combine(RootPath, $".git/objects/{hash}"));
     }
 
     public class BranchHandling
@@ -149,7 +147,11 @@ committer {author} {now.Ticks} {now:zzz}
             RootPath = rootPath;
         }
 
-        public void Init() => Directory.CreateDirectory(GetFilePath(""));
+        public void Init()
+        {
+            Directory.CreateDirectory(GetFilePath(""));
+            WriteToFile("master", "");
+        }
 
         string GetFilePath(string branchName) => Path.Combine(RootPath, ".git/refs/heads/", branchName);
 
@@ -157,11 +159,11 @@ committer {author} {now.Ticks} {now:zzz}
         {
             if (branchName.Contains('/'))
                 Directory.CreateDirectory(Path.GetDirectoryName(GetFilePath(branchName)));
-            
+
             File.WriteAllText(GetFilePath(branchName), hash);
         }
 
-        public string Checkout(string branchName, string? hash)
+        public string? Checkout(string branchName, string? hash)
         {
             if (Exists(branchName))
                 return ReadBranchHash(branchName);
@@ -171,9 +173,21 @@ committer {author} {now.Ticks} {now:zzz}
 
         public bool Exists(string branchName) => File.Exists(GetFilePath(branchName));
 
-        public string ReadBranchHash(string branchName) => File.ReadAllText(GetFilePath(branchName));
+        public Id ReadBranchHash(string branchName) => File.ReadAllText(GetFilePath(branchName)).ToId();
 
-        public void WriteBranchHash(string branchName, string hash) => WriteToFile(branchName, hash);
+        public void WriteBranchHash(string branchName, Id hash) => WriteToFile(branchName, hash);
+
+        public string ListBranches(string? headName)
+        {
+            var branches = Directory.GetFiles(GetFilePath(""), "*", SearchOption.AllDirectories)
+                .Select(x => x.Substring(GetFilePath("").Length))
+                .OrderBy(x => x)
+                .Select(x => $"{(x == headName ? '*' : ' ')} {x}");
+
+            var detached = headName == null ? $"\r\n* (HEAD detached at {headName})\r\n" : "";
+
+            return $"{detached}{branches.StringJoin("\r\n")}";
+        }
     }
 
     public class HeadHandling
@@ -191,20 +205,20 @@ committer {author} {now.Ticks} {now:zzz}
 
         public void Init() => File.WriteAllText(HeadFilePath, "ref: refs/heads/master");
 
-        public string ReadHead() => IsHeadRef() ? branchHandling.ReadBranchHash(ReadHeadRef()) : File.ReadAllText(HeadFilePath);
+        public Id ReadHead() => IsHeadRef() ? branchHandling.ReadBranchHash(ReadHeadBranchName()) : File.ReadAllText(HeadFilePath).ToId();
 
-        public string ReadHeadRef() => File.ReadAllText(HeadFilePath).Substring("ref: refs/heads/".Length);
+        public string ReadHeadBranchName() => File.ReadAllText(HeadFilePath).Substring("ref: refs/heads/".Length);
 
         public bool IsHeadRef() => File.ReadAllText(HeadFilePath).StartsWith("ref: ");
 
-        public void WriteHead(string hash)
+        public void WriteHead(Id hash)
         {
             if (IsHeadRef())
-                branchHandling.WriteBranchHash(ReadHeadRef(), hash);
+                branchHandling.WriteBranchHash(ReadHeadBranchName(), hash);
             else File.WriteAllText(HeadFilePath, hash);
         }
 
-        void WriteHeadChangeBranch(string branchName) => File.WriteAllText(HeadFilePath, $"ref: refs/heads/{branchName}");
+        public void WriteHeadChangeBranch(string branchName) => File.WriteAllText(HeadFilePath, $"ref: refs/heads/{branchName}");
     }
 
     public static class ByteHelper
@@ -212,7 +226,7 @@ committer {author} {now.Ticks} {now:zzz}
         static readonly SHA256 Sha = SHA256.Create();
 
         public static string ComputeSha(object o) => ComputeSha(Serialize(o));
-        public static string ComputeSha(byte[] b) => string.Join("", Sha.ComputeHash(b).Select(x => $"{x:x2}"));
+        public static Id ComputeSha(byte[] b) => Sha.ComputeHash(b).Select(x => $"{x:x2}").StringJoin().ToId();
 
         public static byte[] Serialize(object o)
         {
@@ -233,5 +247,43 @@ committer {author} {now.Ticks} {now:zzz}
                 return (T)new BinaryFormatter().Deserialize(ms);
             }
         }
+    }
+
+    public class Commit
+    {
+        public List<Id> Parents = new List<Id>();
+        public Id Content;
+        public string CommitMessage;
+        public string Author;
+        public DateTime Time;
+
+        public string CreateCommitNode()
+        {
+            return @$"tree {Content}{Parents.Select(x => $"\r\nparent {x}").StringJoin()}
+author {Author} {Time.Ticks} {Time:zzz}
+committer {Author} {Time.Ticks} {Time:zzz}
+
+{CommitMessage}";
+        }
+    }
+
+    public class Id
+    {
+        public string Value = "";
+
+        public Id(string value)
+        {
+            Value = value;
+        }
+
+        public static implicit operator string(Id ts) => ts?.Value;
+
+        public override string ToString() => Value;
+    }
+
+    public static class Ext
+    {
+        public static Id ToId(this string s) => new Id(s);
+        public static string StringJoin(this IEnumerable<string> col, string separator = "") => string.Join(separator, col);
     }
 }

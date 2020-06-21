@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using FluentAssertions;
 using KbgSoft.KBGit2;
 using Xunit;
@@ -45,7 +47,7 @@ namespace kbgit.tests2
             git.Stage();
 
             git.ReadIndex().Should().BeEquivalentTo("9834876dcfb05cb167a5c24953eba58c4ac89b1adf57f28f2f9d09af107ee8f0 a.txt");
-            git.CatFile("9834876dcfb05cb167a5c24953eba58c4ac89b1adf57f28f2f9d09af107ee8f0").Should().Be("aaa");
+            git.CatFile("9834876dcfb05cb167a5c24953eba58c4ac89b1adf57f28f2f9d09af107ee8f0".ToId()).Should().Be("aaa");
         }
 
         [Fact]
@@ -114,9 +116,9 @@ committer Clarke Kent 637135310450000000 +01:00
 
 commit message");
 
-            git.CatFile("a06f8f314a671df7ea4ffd0c1d98c69b6d84fae50bf0ff3e02d60cf3564f6d23").Should()
+            git.CatFile("a06f8f314a671df7ea4ffd0c1d98c69b6d84fae50bf0ff3e02d60cf3564f6d23".ToId()).Should()
                 .Be("blob 9834876dcfb05cb167a5c24953eba58c4ac89b1adf57f28f2f9d09af107ee8f0       a.txt");
-            git.CatFile("9834876dcfb05cb167a5c24953eba58c4ac89b1adf57f28f2f9d09af107ee8f0").Should()
+            git.CatFile("9834876dcfb05cb167a5c24953eba58c4ac89b1adf57f28f2f9d09af107ee8f0".ToId()).Should()
                 .Be("aaa");
         }
 
@@ -139,16 +141,16 @@ committer Clarke Kent 637135310450000000 +01:00
 commit message");
 
             // show root commit dir
-            git.CatFile("64af0aefbec30845dddd56643c23e9148758d8fbd34fe741f0643cb33c8abfca").Should().Be(
+            git.CatFile("64af0aefbec30845dddd56643c23e9148758d8fbd34fe741f0643cb33c8abfca".ToId()).Should().Be(
 @"blob 9834876dcfb05cb167a5c24953eba58c4ac89b1adf57f28f2f9d09af107ee8f0       a.txt
 tree b70a5f51331663558c5326803e159cb010287388e9a8fb8ecdd36b6565c41182      bar
 tree f159e019c62b0cb3c7f089e7dc229cd81d10feeac3bb8f39b9250f9c98528d4d      foo");
             // show 'foo'
-            git.CatFile("f159e019c62b0cb3c7f089e7dc229cd81d10feeac3bb8f39b9250f9c98528d4d").Should().Be(
+            git.CatFile("f159e019c62b0cb3c7f089e7dc229cd81d10feeac3bb8f39b9250f9c98528d4d".ToId()).Should().Be(
 @"blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      b.txt
 blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      d.txt");
             // show 'bar'
-            git.CatFile("b70a5f51331663558c5326803e159cb010287388e9a8fb8ecdd36b6565c41182").Should().Be(
+            git.CatFile("b70a5f51331663558c5326803e159cb010287388e9a8fb8ecdd36b6565c41182".ToId()).Should().Be(
                 @"blob 64daa44ad493ff28a96effab6e77f1732a3d97d83241581b37dbd70a7a4900fe      c.txt");
         }
 
@@ -201,32 +203,53 @@ blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      d.txt
         {
             var git = builder.InitEmptyRepo()
                 .WithFile("a.txt", "aaa")
+                .StageCommit()
+                .ChangeFile("a.txt", "bbb")
                 .Stage()
                 .Build();
-            var commitHash1 = git.Commit("message", "Clarke", date);
-            builder.ChangeFile("a.txt", "bbb");
-            git.Stage();
 
             var commitHash2 = git.Commit("message 2", "Clarke", date);
 
-            git.CatFile(commitHash2).Should().Contain(commitHash1);
+            git.CatFile(commitHash2)
+                .Should().Contain($"parent {builder.Commits.Single()}")
+                .And.Contain("message 2");
             builder.ReadBranch("master").Should().Be(commitHash2);
         }
 
         [Fact]
-        public void When_list_branches_Then_return_empty()
+        public void When_only_master_branch_and_list_branches_Then_return_master()
         {
-            var git = builder.InitEmptyRepo().Build();
+            var git = builder.InitEmptyRepo()
+                .WithFile("a.txt", "aaa")
+                .StageCommit()
+                .Build();
 
-            new DirectoryInfo(Path.Combine(git.RootPath, ".git")).Exists.Should().BeTrue();
+            git.ListBranches().Should().Be("* master");
         }
+
+        [Fact]
+        public void When_checkingout_branch_b_Then_list_all_branched_with_focus_on_b()
+        {
+            var git = builder.InitEmptyRepo()
+                .WithFile("a.txt", "aaa")
+                .StageCommit()
+                .CheckoutBranch("b")
+                .Build();
+
+            git.ListBranches().Should().Be(
+@"* b
+  master");
+        }
+
     }
 
     class RepoBuilder
     {
-        public string TestPath = $@"c:\temp\kbggit{DateTime.Now.Ticks}\";
+        public string TestPath = $@"c:\temp\kbggit\{DateTime.Now.Ticks}\";
 
-        private Git2 Git;
+        Git2 Git;
+
+        public List<string> Commits = new List<string>();
 
         public RepoBuilder MakeEmptyRepo()
         {
@@ -259,8 +282,14 @@ blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      d.txt
 
         public RepoBuilder Commit()
         {
-            Git.Commit("A commit message", "Clark Kent", new DateTime(2020, 1, 2, 3, 4, 5));
+            Commits.Add(Git.Commit("A commit message", "Clark Kent", new DateTime(2020, 1, 2, 3, 4, 5)));
             return this;
+        }
+
+        public RepoBuilder StageCommit()
+        {
+            Stage();
+            return Commit();
         }
 
         public RepoBuilder ChangeFile(string path, string newContent)
@@ -274,6 +303,11 @@ blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      d.txt
             return File.ReadAllText(Path.Combine(TestPath, ".git/HEAD"));
         }
 
+        public RepoBuilder CheckoutBranch(string name)
+        {
+            Git.CheckOutBranch(name);
+            return this;
+        }
 
         public string ReadBranch(string branchName)
         {

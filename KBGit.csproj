@@ -5,6 +5,7 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <RootNamespace>KbgSoft.KBGit</RootNamespace>
     <StartupObject>KbgSoft.KBGit.Program</StartupObject>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
