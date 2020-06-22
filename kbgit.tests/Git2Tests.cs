@@ -134,23 +134,23 @@ commit message");
                 .Build();
 
             var commitHash = git.Commit("commit message", "Clarke Kent", date);
-            git.CatFile(commitHash).Should().Be(@$"tree 64af0aefbec30845dddd56643c23e9148758d8fbd34fe741f0643cb33c8abfca
+            git.CatFile(commitHash).Should().Be(@$"tree a04ab901b141d9edbb299852f44dc8e35c3873dd1f912073e40351b3bd3abed9
 author Clarke Kent 637135310450000000 +01:00
 committer Clarke Kent 637135310450000000 +01:00
 
 commit message");
 
             // show root commit dir
-            git.CatFile("64af0aefbec30845dddd56643c23e9148758d8fbd34fe741f0643cb33c8abfca".ToId()).Should().Be(
+            git.CatFile("a04ab901b141d9edbb299852f44dc8e35c3873dd1f912073e40351b3bd3abed9").Should().Be(
 @"blob 9834876dcfb05cb167a5c24953eba58c4ac89b1adf57f28f2f9d09af107ee8f0       a.txt
-tree b70a5f51331663558c5326803e159cb010287388e9a8fb8ecdd36b6565c41182      bar
-tree f159e019c62b0cb3c7f089e7dc229cd81d10feeac3bb8f39b9250f9c98528d4d      foo");
+tree b70a5f51331663558c5326803e159cb010287388e9a8fb8ecdd36b6565c41182       bar
+tree f159e019c62b0cb3c7f089e7dc229cd81d10feeac3bb8f39b9250f9c98528d4d       foo");
             // show 'foo'
-            git.CatFile("f159e019c62b0cb3c7f089e7dc229cd81d10feeac3bb8f39b9250f9c98528d4d".ToId()).Should().Be(
+            git.CatFile("f159e019c62b0cb3c7f089e7dc229cd81d10feeac3bb8f39b9250f9c98528d4d").Should().Be(
 @"blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      b.txt
 blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      d.txt");
             // show 'bar'
-            git.CatFile("b70a5f51331663558c5326803e159cb010287388e9a8fb8ecdd36b6565c41182".ToId()).Should().Be(
+            git.CatFile("b70a5f51331663558c5326803e159cb010287388e9a8fb8ecdd36b6565c41182").Should().Be(
                 @"blob 64daa44ad493ff28a96effab6e77f1732a3d97d83241581b37dbd70a7a4900fe      c.txt");
         }
 
@@ -161,10 +161,9 @@ blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      d.txt
                 .WithFile("a.txt", "aaa")
                 .Stage()
                 .Build();
-
             var indexBefore = builder.ReadHEAD();
 
-            var commitHash = git.Commit("commit message", "Clarke Kent", date);
+            git.Commit("commit message", "Clarke Kent", date);
 
             indexBefore.Should().Be(builder.ReadHEAD());
         }
@@ -241,6 +240,23 @@ blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      d.txt
   master");
         }
 
+        [Fact]
+        public void When_checkingout_branch_Then_reset_source_folder()
+        {
+            var git = builder.InitEmptyRepo()
+                .WithFile("a.txt", "aaa")
+                .StageCommit()
+                .CheckoutBranch("b")
+                .ChangeFile("a.txt","changed")
+                .WithFile("c.txt","new file")
+                .StageCommit()
+                .CheckoutBranch("master")
+                .Build();
+
+            Directory.GetFiles(builder.TestPath).Select(x=>x.Substring(builder.TestPath.Length)).Should().BeEquivalentTo(new[] { "a.txt" });
+
+            File.ReadAllText(Path.Combine(builder.TestPath, "a.txt")).Should().Be("aaa");
+        }
     }
 
     class RepoBuilder
@@ -249,7 +265,7 @@ blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      d.txt
 
         Git2 Git;
 
-        public List<string> Commits = new List<string>();
+        public List<Id> Commits = new List<Id>();
 
         public RepoBuilder MakeEmptyRepo()
         {

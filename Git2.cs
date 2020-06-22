@@ -39,12 +39,12 @@ namespace KbgSoft.KBGit2
         /// </summary>
         public void Stage()
         {
-            var pathAndHash = ReadIndex().Select(x => x.Split(' ')).ToDictionary(x => x[1], x => x[0]);
+            var pathAndHash = ReadIndex().Select(x => x.Split(' ')).ToDictionary(x => x[1], x => x[0].ToId());
 
             Directory.EnumerateFiles(RootPath, "*", SearchOption.AllDirectories)
                 .Select(x => new { fullPath = x, relPath = x.Substring(RootPath.Length).Replace('\\', '/') })
                 .Where(x => !x.relPath.StartsWith(".git"))
-                .ToList().ForEach(x => pathAndHash[x.relPath] = objectDb.WriteObjectFromFilepath(x.fullPath));
+                .Each(x => pathAndHash[x.relPath] = objectDb.WriteObjectFromFilepath(x.fullPath));
 
             WriteIndex(pathAndHash.OrderBy(x => x.Key).Select(x => $"{x.Value} {x.Key}"));
         }
@@ -52,6 +52,27 @@ namespace KbgSoft.KBGit2
         public string[] ReadIndex() => File.ReadAllLines(Path.Combine(RootPath, ".git/index"));
 
         public void WriteIndex(IEnumerable<string> content) => File.WriteAllLines(Path.Combine(RootPath, ".git/index"), content);
+
+        public Id WriteIndexToFileSystem()
+        {
+            var lines = ReadIndex().Select(x => (hash: x.Substring(0, 64).ToId(), path: x.Substring(64).Split('/').ToArray()));
+
+            return WriteIndexToFileSystem(lines);
+        }
+
+        private Id WriteIndexToFileSystem(IEnumerable<(Id hash, string[] path)> lines)
+        {
+            var valueTuples = lines.ToArray();
+
+            var fileLines = valueTuples.Where(x => x.path.Length == 1)
+                .Select(x => new GitFileSystemLine() { Type = GitFileSystemLine.Kind.blob, Hash = x.hash, Name = x.path.Single() }.GenerateFileSystemLine());
+
+            var folderLines = valueTuples.Where(x => x.path.Length > 1)
+                .ToLookup(x => x.path.First(), x => (x.hash, path: x.path.Skip(1).ToArray()))
+                .Select(x => new GitFileSystemLine() { Type = GitFileSystemLine.Kind.tree, Hash = WriteIndexToFileSystem(x), Name = x.Key }.GenerateFileSystemLine());
+
+            return objectDb.WriteContent(fileLines.Concat(folderLines).StringJoin("\r\n"));
+        }
 
         public Id Commit(string commitMessage, string author, DateTime now)
         {
@@ -71,33 +92,43 @@ namespace KbgSoft.KBGit2
             return commitId;
         }
 
-        public Id WriteIndexToFileSystem()
-        {
-            var lines = ReadIndex().Select(x => (hash: x.Substring(0, 64).ToId(), path: x.Substring(64).Split('/').ToArray()));
-
-            return WriteIndexToFileSystem(lines);
-        }
-
-        private Id WriteIndexToFileSystem(IEnumerable<(Id hash, string[] path)> lines)
-        {
-            var valueTuples = lines.ToArray();
-
-            var fileLines = valueTuples.Where(x => x.path.Length == 1)
-                .Select(x => $"blob {x.hash}      {x.path.Single()}");
-
-            var folderLines = valueTuples.Where(x => x.path.Length > 1)
-                .ToLookup(x => x.path.First(), x => (x.hash, path: x.path.Skip(1).ToArray()))
-                .Select(x => $"tree {WriteIndexToFileSystem(x)}     {x.Key}");
-
-            return objectDb.WriteContent(fileLines.Concat(folderLines).StringJoin("\r\n"));
-        }
-
         public string CheckOutBranch(string branchName)
         {
             var result = branchHandling.Checkout(branchName, headHandling.ReadHead());
             headHandling.WriteHeadChangeBranch(branchName);
 
+            ResetFolder();
+
             return $"Switched to a {(result == null ? "" : "new ")} branch '{branchName}'";
+        }
+
+        void ResetFolder()
+        {
+            Ext.Log("Reset folder");
+            Directory.EnumerateDirectories(RootPath).Where(x => !x.EndsWith(".git")).Each(x => { Ext.Log($"delete '{x}'"); Directory.Delete(x, true); });
+            Directory.EnumerateFiles(RootPath).Where(x => Ext.Log($"delete '{x}'")).Each(x => File.Delete(x));
+            Id tree = new Commit().GetFilesEntry(objectDb.ReadObject(headHandling.ReadHead()));
+
+            Restore(tree, RootPath);
+        }
+
+        void Restore(Id node, string path)
+        {
+            objectDb.ReadObject(node)
+                .Split("\r\n", StringSplitOptions.RemoveEmptyEntries)
+                .Each(x =>
+            {
+                Ext.Log($"Restoring {x}");
+                var gfs = GitFileSystemLine.Parse(x);
+                if (gfs.Type == GitFileSystemLine.Kind.tree)
+                {
+                    string dir = Path.Combine(path, $"/{gfs.Name}/");
+                    Directory.CreateDirectory(dir);
+                    Restore(gfs.Hash, dir);
+                }
+                else
+                    File.WriteAllText(Path.Combine(path, gfs.Name), objectDb.ReadObject(gfs.Hash));
+            });
         }
 
         /// <summary>
@@ -110,7 +141,23 @@ namespace KbgSoft.KBGit2
             return branchHandling.ListBranches(null);
         }
 
-        public string? CatFile(Id hash) => objectDb.ReadObject(hash);
+        public string? CatFile(string hash) => objectDb.ReadObject(hash.ToId());
+    }
+
+    class GitFileSystemLine
+    {
+        public enum Kind { tree, blob };
+        public Kind Type;
+        public string Name;
+        public Id Hash;
+
+        public static GitFileSystemLine Parse(string s)
+        {
+            var cols = s.Split(" ", StringSplitOptions.RemoveEmptyEntries);
+            return new GitFileSystemLine() { Type = cols[0] == "tree" ? Kind.tree : Kind.blob, Hash = cols[1].ToId(), Name = cols[2] };
+        }
+
+        public string GenerateFileSystemLine() => $"{Type} {Hash}      {Name}";
     }
 
     public class ObjectDb
@@ -122,7 +169,7 @@ namespace KbgSoft.KBGit2
             RootPath = rootPath;
         }
 
-        public void Init() => new DirectoryInfo(Path.Combine(RootPath, ".git/objects")).Create();
+        public void Init() => Directory.CreateDirectory(Path.Combine(RootPath, ".git/objects/"));
 
         public Id WriteContent(string content)
         {
@@ -133,7 +180,7 @@ namespace KbgSoft.KBGit2
             return hash;
         }
 
-        public string WriteObjectFromFilepath(string path) => WriteContent(File.ReadAllText(path));
+        public Id WriteObjectFromFilepath(string path) => WriteContent(File.ReadAllText(path));
 
         public string? ReadObject(Id hash) => hash == "" ? null : File.ReadAllText(Path.Combine(RootPath, $".git/objects/{hash}"));
     }
@@ -167,7 +214,7 @@ namespace KbgSoft.KBGit2
         {
             if (Exists(branchName))
                 return ReadBranchHash(branchName);
-            WriteToFile(branchName, hash);
+            WriteToFile(branchName, hash.ToString());
             return null;
         }
 
@@ -265,6 +312,13 @@ committer {Author} {Time.Ticks} {Time:zzz}
 
 {CommitMessage}";
         }
+
+        public Id GetFilesEntry(string commitNode)
+        {
+            if (commitNode.StartsWith("tree "))
+                return commitNode.Substring(5, 64).ToId();
+            throw new Exception($"Not a valid commit node:\n{commitNode}");
+        }
     }
 
     public class Id
@@ -285,5 +339,11 @@ committer {Author} {Time.Ticks} {Time:zzz}
     {
         public static Id ToId(this string s) => new Id(s);
         public static string StringJoin(this IEnumerable<string> col, string separator = "") => string.Join(separator, col);
+        public static void Each<T>(this IEnumerable<T> col, Action<T> code) => col.ToList().ForEach(code);
+        public static bool Log(string s)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow; Console.WriteLine(s); Console.ForegroundColor = ConsoleColor.White;
+            return true;
+        }
     }
 }
