@@ -13,7 +13,6 @@ namespace kbgit.tests2
         private readonly RepoBuilder builder = new RepoBuilder();
         readonly DateTime date = new DateTime(2020, 1, 2, 3, 4, 5);
 
-
         [Fact]
         public void When_init_Then_create_git_folder()
         {
@@ -256,6 +255,65 @@ blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      d.txt
             Directory.GetFiles(builder.TestPath).Select(x=>x.Substring(builder.TestPath.Length)).Should().BeEquivalentTo(new[] { "a.txt" });
 
             File.ReadAllText(Path.Combine(builder.TestPath, "a.txt")).Should().Be("aaa");
+        }
+
+    public class DiffTests
+    {
+        Differ differ = new Differ();
+
+        [Fact]
+        public void When_diffing_identical_files_Then_report_no_differences()
+        {
+            differ.Diff(@"
+a
+b
+c".Split("\r\n"),
+@"
+a
+b
+c".Split("\r\n")).Should().BeEmpty();
+
+        }
+
+        [Fact]
+        public void When_diffing_files_Then_report_differences()
+        {
+            var diffs = differ.Diff(@"
+a
+b
+b
+b
+c".Split("\r\n"),
+@"
+a
+b
+c
+c".Split("\r\n"));
+
+            differ.ToString(diffs).Should().Be(
+@"-b
+-b
++c");
+        }
+        [Fact]
+        public void When_diffing_completely_different_files_Then_report_differences()
+        {
+            var diffs = differ.Diff(@"
+a
+b
+c".Split("\r\n"),
+@"
+d
+e
+f".Split("\r\n"));
+
+            differ.ToString(diffs).Should().Be(
+@"-a
+-b
+-c
++d
++e
++f");
         }
     }
 

@@ -335,6 +335,47 @@ committer {Author} {Time.Ticks} {Time:zzz}
         public override string ToString() => Value;
     }
 
+
+    public class Differ
+    {
+        public List<(string line, int lineNo)> Diff(string[] a, string[] b)
+        {
+            return Diff(a.Select((x, i) => (x, i + 1)), b.Select((x, i) => (x, i + 1))).ToList();
+        }
+
+        public string ToString(List<(string line, int lineNo)> r)
+        {
+            return r.Select(x => string.Join($"\r\n", x.line)).StringJoin("\r\n");
+        }
+
+        IEnumerable<(string line, int lineNo)> Diff(IEnumerable<(string line, int lineNo)> fileA, IEnumerable<(string line, int lineNo)> fileB)
+        {
+            (string line, int lineNo)[] a = fileA.ToArray(), b = fileB.ToArray();
+            int longestOverlap = 0, offsetA = 1, offsetB = -1, overlap;
+            for (int ia = 0; ia < a.Length; ia++)
+            {
+                for (int ib = 0; ib < b.Length; ib++)
+                {
+                    for (overlap = 0;
+                        ia + overlap < a.Length && ib + overlap < b.Length && a[ia + overlap].line == b[ib + overlap].line;
+                        overlap++) ;
+
+                    if (overlap > longestOverlap)
+                    {
+                        longestOverlap = overlap; offsetA = ia; offsetB = ib;
+                    }
+                }
+            }
+
+            return (longestOverlap == 0)
+                ? fileA.Select(x => ($"-{x.line}", x.lineNo))
+                  .Concat(fileB.Select(x => ($"+{x.line}", x.lineNo)))
+                : Diff(fileA.Take(offsetA), fileB.Take(offsetB))
+                  .Concat(Diff(fileA.Skip(offsetA + longestOverlap), fileB.Skip(offsetB + longestOverlap)));
+        }
+    }
+
+
     public static class Ext
     {
         public static Id ToId(this string s) => new Id(s);
