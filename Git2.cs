@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace KbgSoft.KBGit2
 {
@@ -107,7 +108,7 @@ namespace KbgSoft.KBGit2
             Ext.Log("Reset folder");
             Directory.EnumerateDirectories(RootPath).Where(x => !x.EndsWith(".git")).Each(x => { Ext.Log($"delete '{x}'"); Directory.Delete(x, true); });
             Directory.EnumerateFiles(RootPath).Where(x => Ext.Log($"delete '{x}'")).Each(x => File.Delete(x));
-            Id tree = new Commit().GetFilesEntry(objectDb.ReadObject(headHandling.ReadHead()));
+            Id tree = KBGit2.Commit.Parse(objectDb.ReadObject(headHandling.ReadHead())).Content;
 
             Restore(tree, RootPath);
         }
@@ -142,6 +143,19 @@ namespace KbgSoft.KBGit2
         }
 
         public string? CatFile(string hash) => objectDb.ReadObject(hash.ToId());
+
+        public string Log(Id? id = null)
+        {
+            id = id ?? headHandling.ReadHead();
+            if (id == null)
+                return "";
+
+            var commit = KBGit2.Commit.Parse(objectDb.ReadObject(id));
+
+            var ancestors = string.Join("\r\n", commit.Parents.Select(x => Log(x)));
+            return $"{commit.CommitMessage}\r\n{ancestors}";
+        }
+
     }
 
     class GitFileSystemLine
@@ -303,6 +317,32 @@ namespace KbgSoft.KBGit2
         public string CommitMessage;
         public string Author;
         public DateTime Time;
+        static Regex authorRegex = new Regex("author (?<author>.*) (?<ticks>\\d+) (?<time>.*)");
+
+        public static Commit Parse(string commitContent)
+        {
+            if (!commitContent.StartsWith("tree "))
+                throw new Exception($"Not a valid commit node:\n'{commitContent}'");
+
+            var result = new Commit();
+            
+            int i = 0;
+            var lines = commitContent.Split("\r\n").ToList();
+            
+            result.Content = lines[i++].Substring("tree ".Length).ToId();
+            
+            while(lines[i].StartsWith("parent "))
+                result.Parents.Add(lines[i++].Substring("parent ".Length).ToId());
+
+            var authorMatch = authorRegex.Match(lines[i++]);
+            result.Author = authorMatch.Groups["author"].Value;
+            result.Time = new DateTime(long.Parse(authorMatch.Groups["ticks"].Value));
+
+            int skipCommitterInfoAndBlankLine = 2;
+            result.CommitMessage = string.Join("\r\n", lines.Skip(i+skipCommitterInfoAndBlankLine));
+
+            return result;
+        }
 
         public string CreateCommitNode()
         {
@@ -312,27 +352,19 @@ committer {Author} {Time.Ticks} {Time:zzz}
 
 {CommitMessage}";
         }
-
-        public Id GetFilesEntry(string commitNode)
-        {
-            if (commitNode.StartsWith("tree "))
-                return commitNode.Substring(5, 64).ToId();
-            throw new Exception($"Not a valid commit node:\n{commitNode}");
-        }
     }
 
     public class Id
     {
-        public string Value = "";
+        public string Value;
 
-        public Id(string value)
-        {
-            Value = value;
-        }
+        public Id(string value) => Value = value ?? throw new ArgumentNullException(nameof(value));
 
-        public static implicit operator string(Id ts) => ts?.Value;
+        public static implicit operator string(Id ts) => ts.Value;
 
         public override string ToString() => Value;
+
+        public override bool Equals(object? obj) => Value.Equals(obj);
     }
 
 
@@ -374,7 +406,6 @@ committer {Author} {Time.Ticks} {Time:zzz}
                   .Concat(Diff(fileA.Skip(offsetA + longestOverlap), fileB.Skip(offsetB + longestOverlap)));
         }
     }
-
 
     public static class Ext
     {

@@ -246,16 +246,47 @@ blob 3e744b9dc39389baf0c5a0660589b8402f3dbb49b89b3e75f2c9355852a3c677      d.txt
                 .WithFile("a.txt", "aaa")
                 .StageCommit()
                 .CheckoutBranch("b")
-                .ChangeFile("a.txt","changed")
-                .WithFile("c.txt","new file")
+                .ChangeFile("a.txt", "changed")
+                .WithFile("c.txt", "new file")
                 .StageCommit()
                 .CheckoutBranch("master")
                 .Build();
 
-            Directory.GetFiles(builder.TestPath).Select(x=>x.Substring(builder.TestPath.Length)).Should().BeEquivalentTo(new[] { "a.txt" });
+            Directory.GetFiles(builder.TestPath).Select(x => x.Substring(builder.TestPath.Length)).Should().BeEquivalentTo(new[] { "a.txt" });
 
             File.ReadAllText(Path.Combine(builder.TestPath, "a.txt")).Should().Be("aaa");
         }
+
+
+        [Fact]
+        public void When_logging_Then_list_commit()
+        {
+            var git = builder.InitEmptyRepo()
+                .WithFile("a.txt", "aaa")
+                .StageCommit(@"first")
+                .Build();
+
+            git.Log().Should().Be(
+@"first
+");
+        }
+
+        [Fact]
+        public void When_logging_Then_list_commits()
+        {
+            var git = builder.InitEmptyRepo()
+                .WithFile("a.txt", "aaa")
+                .StageCommit("first")
+                .WithFile("b.txt", "bbb")
+                .StageCommit("second")
+                .Build();
+
+            git.Log().Should().Be(
+@"second
+first
+");
+        }
+    }
 
     public class DiffTests
     {
@@ -354,16 +385,16 @@ f".Split("\r\n"));
         }
 
 
-        public RepoBuilder Commit()
+        public RepoBuilder Commit(string msg = "A commit message")
         {
-            Commits.Add(Git.Commit("A commit message", "Clark Kent", new DateTime(2020, 1, 2, 3, 4, 5)));
+            Commits.Add(Git.Commit(msg, "Clark Kent", new DateTime(2020, 1, 2, 3, 4, 5)));
             return this;
         }
 
-        public RepoBuilder StageCommit()
+        public RepoBuilder StageCommit(string msg="A commit message")
         {
             Stage();
-            return Commit();
+            return Commit(msg);
         }
 
         public RepoBuilder ChangeFile(string path, string newContent)
